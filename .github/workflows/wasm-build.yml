@@ -45,19 +45,3 @@ jobs:
 
       - name: Build WASM client
         run: ./scripts/build_wasm.sh
-
-  docker:
-    name: wasm-build-docker
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Show Docker versions
-        run: |
-          docker --version
-          docker compose version
-
-      - name: Build WASM client in Docker
-        run: ./scripts/docker_build_wasm.sh

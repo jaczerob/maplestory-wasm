@@ -56,7 +56,7 @@ listed in the [testing guide](testing.md#tests-using-nx-assets). Assets remain
 read-only. When local dependencies are unavailable, use:
 
 ```bash
-./scripts/docker_run_tests.sh --assets -- -R character_stats
+../docker/frontend/scripts/docker_run_tests.sh --assets -- -R character_stats
 ```
 
 The default local Debug run writes diagnostic captures under

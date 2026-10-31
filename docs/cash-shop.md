@@ -67,7 +67,7 @@ the classic Cash Shop artwork. Assets are read-only. When local dependencies are
 unavailable, use the same filter with the Docker fallback:
 
 ```bash
-./scripts/docker_run_tests.sh --assets -- -R cash_shop
+../docker/frontend/scripts/docker_run_tests.sh --assets -- -R cash_shop
 ```
 
 Related equipment and appearance regressions can be run together:

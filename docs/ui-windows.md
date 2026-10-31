@@ -44,7 +44,7 @@ The case also runs in the default suite and native-test CI. When the local
 toolchain is unavailable, use:
 
 ```bash
-./scripts/docker_run_tests.sh -- -R ui_window
+../docker/frontend/scripts/docker_run_tests.sh -- -R ui_window
 ```
 
 The default local Debug run writes results to
