@@ -31,6 +31,12 @@ namespace jrc
         void handle(InPacket& recv) const override;
     };
 
+    // Restores the eight native quickslot key codes.
+    class QuickslotInitHandler : public PacketHandler
+    {
+        void handle(InPacket& recv) const override;
+    };
+
 
     // Parses skill macros.
     class SkillMacrosHandler : public PacketHandler

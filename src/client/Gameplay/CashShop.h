@@ -29,7 +29,7 @@ namespace jrc
         enum class State { CLOSED, ENTERING, OPEN, EXITING };
         enum class Operation { NONE, BUY, GIFT, WISH, WITHDRAW, DEPOSIT, EXPAND, COUPON, REFRESH };
 
-        void enter();
+        void enter(bool trade = false);
         void leave();
         void update();
         void opened();
@@ -52,6 +52,7 @@ namespace jrc
         bool active() const { return state != State::CLOSED; }
         bool ready() const { return state == State::OPEN && balances_ready && !busy(); }
         nl::node skin() const { return skin_file.root()["CashShop.img"]; }
+        nl::node mts_skin() const { return skin_file.root()["ITC.img"]; }
 
         State state = State::CLOSED;
         Operation pending = Operation::NONE;
@@ -64,6 +65,7 @@ namespace jrc
         InventoryType::Id pending_type = InventoryType::NONE;
         int16_t pending_slot = 0;
         bool gifts_received = false;
+        bool trading = false;
         std::string return_address;
         std::string return_port;
         std::string account_name;

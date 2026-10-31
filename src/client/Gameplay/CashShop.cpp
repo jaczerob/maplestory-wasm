@@ -17,10 +17,15 @@
 
 namespace jrc
 {
-    void CashShop::enter()
+    void CashShop::enter(bool trade)
     {
         if (active())
             return;
+        if (trade && Stage::get().get_player().get_level() < 10)
+        {
+            UI::get().emplace<UIOk>("The Maple Trading System is available at level 10.", [] {});
+            return;
+        }
         try
         {
             if (!skin_file.root())
@@ -31,8 +36,10 @@ namespace jrc
 #endif
                 skin_file.open("UI_83.nx");
             }
-            if (!skin()["Base"]["backgrnd"] || CashShopCatalog::get().all().empty())
-                throw std::runtime_error("Cash Shop artwork or catalog is unavailable.");
+            const bool available = trade ? static_cast<bool>(mts_skin()["Base"]["backgrnd"]) :
+                static_cast<bool>(skin()["Base"]["backgrnd"]) && !CashShopCatalog::get().all().empty();
+            if (!available)
+                throw std::runtime_error(trade ? "Maple Trading System artwork is unavailable." : "Cash Shop artwork or catalog is unavailable.");
         }
         catch (const std::exception& error)
         {
@@ -43,14 +50,15 @@ namespace jrc
                             KeyAction::JUMP, KeyAction::ATTACK, KeyAction::PICKUP, KeyAction::SIT})
             Stage::get().send_key(KeyType::ACTION, action, false);
         state = State::ENTERING;
+        trading = trade;
         started = std::chrono::steady_clock::now();
-        message = "Entering Cash Shop...";
+        message = trade ? "Entering Maple Trading System..." : "Entering Cash Shop...";
         character_id = Stage::get().get_player().get_oid();
         pending = Operation::NONE;
         uncertain = false;
         UI::get().cancel_drag();
         UI::get().disable();
-        OutPacket(0x28).dispatch();
+        OutPacket(trade ? 0x9C : 0x28).dispatch();
     }
 
     void CashShop::opened()
@@ -62,7 +70,7 @@ namespace jrc
         locker.clear();
         gifts_received = false;
         wishlist.fill(0);
-        message = "Loading Cash Inventory...";
+        message = trading ? "Loading MTS listings..." : "Loading Cash Inventory...";
         ++revision;
     }
 
@@ -74,6 +82,7 @@ namespace jrc
         uncertain = false;
         balances_ready = false;
         locker.clear();
+        trading = false;
         ++revision;
     }
 
@@ -81,9 +90,11 @@ namespace jrc
     {
         if (state == State::ENTERING)
         {
+            const bool was_trading = trading;
             closed();
             UI::get().enable();
-            UI::get().emplace<UIOk>("Cash Shop is unavailable here. Please try again later.", [] {});
+            UI::get().emplace<UIOk>(was_trading ? "The Maple Trading System is unavailable here. Please try again later." :
+                "Cash Shop is unavailable here. Please try again later.", [] {});
         }
     }
 

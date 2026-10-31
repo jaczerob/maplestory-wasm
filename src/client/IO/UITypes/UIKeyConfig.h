@@ -33,6 +33,7 @@ namespace jrc
 
         void stage_mapping(Point<int16_t> cursorposition, Keyboard::Mapping mapping);
         void unstage_mapping(Keyboard::Mapping mapping);
+        static void assign_quickslot_mapping(uint8_t key, Keyboard::Mapping mapping);
 
     protected:
         Button::State button_pressed(uint16_t buttonid) override;
@@ -47,6 +48,7 @@ namespace jrc
             void drop_on_equips(Equipslot::Id) const override {}
             void drop_on_items(InventoryType::Id, Equipslot::Id, int16_t, bool) const override {}
             void drop_on_bindings(Point<int16_t> cursorposition, bool remove) const override;
+            Keyboard::Mapping get_key_mapping() const override { return mapping; }
 
         private:
             Keyboard::Mapping mapping;
@@ -63,6 +65,7 @@ namespace jrc
         void reset_to_defaults();
         void safe_close();
         void close_discard();
+        void sync_quickslot_mapping(const std::set<uint8_t>& keys, Keyboard::Mapping mapping);
 
         Icon* icon_for_mapping(const Keyboard::Mapping& mapping) const;
         Point<int16_t> key_icon_position(KeyConfig::Key key) const;

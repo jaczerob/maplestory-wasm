@@ -22,8 +22,10 @@
 #include "../Messages.h"
 
 #include "../Components/Charset.h"
+#include "../Components/Icon.h"
 #include "../Components/Gauge.h"
 #include "../Components/Textfield.h"
+#include "../../Graphics/Texture.h"
 
 #include "../../Character/CharStats.h"
 #include "../../Character/Inventory/Inventory.h"
@@ -32,6 +34,8 @@
 #include "../../Graphics/Text.h"
 
 #include <vector>
+#include <array>
+#include <map>
 
 namespace jrc
 {
@@ -50,12 +54,16 @@ namespace jrc
         bool is_in_range(Point<int16_t> cursorpos) const override;
         bool remove_cursor(bool clicked, Point<int16_t> cursorpos) override;
         CursorResult send_cursor(bool pressed, Point<int16_t> cursorpos) override;
+        void send_icon(const Icon& icon, Point<int16_t> cursorpos) override;
 
         void send_chatline(const std::string& line, UIChatbar::LineType type);
         void focus_chatfield();
         void display_message(Messages::Type line, UIChatbar::LineType type);
         void set_chat_target(UIChatbar::ChatTarget target);
         void cycle_chat_target();
+        void toggle_quickslot();
+        Point<int16_t> menu_anchor() const;
+        Point<int16_t> system_menu_anchor() const;
         void set_pending_party_invite(int32_t party_id, const std::string& inviter);
         void clear_pending_party_invite();
         void set_party_state(int32_t party_id, int32_t leader_id, const std::vector<UIChatbar::PartyMember>& members);
@@ -73,6 +81,10 @@ namespace jrc
 
     private:
         void update_layout_position();
+        void update_quickslot_icons();
+        void draw_quickslot_icons() const;
+        Rectangle<int16_t> quickslot_bounds() const;
+        int quickslot_by_position(Point<int16_t> cursorpos) const;
         float getexppercent() const;
         float gethppercent() const;
         float getmppercent() const;
@@ -90,7 +102,9 @@ namespace jrc
             BT_QUEST,
             BT_INVENTORY,
             BT_EQUIPS,
-            BT_SKILL
+            BT_SKILL,
+            BT_QSOPEN,
+            BT_QSCLOSE
         };
 
         static constexpr Point<int16_t> POSITION  = {  512, 590 };
@@ -98,6 +112,7 @@ namespace jrc
         static constexpr time_t MESSAGE_COOLDOWN = 1'000;
 
         const CharStats& stats;
+        Keyboard* keyboard;
 
         EnumMap<Messages::Type, time_t> message_cooldowns;
 
@@ -111,5 +126,12 @@ namespace jrc
         Text joblabel;
         Animation hpanimation;
         Animation mpanimation;
+        Texture quickslot;
+        bool quickslot_open = false;
+        std::array<std::unique_ptr<Icon>, 8> quickslot_icons;
+        std::array<Keyboard::Mapping, 8> quickslot_mappings;
+        Keyboard::Quickslots displayed_quickslots{};
+        std::map<uint8_t, Texture> quickslot_key_labels;
+        bool quickslot_icons_loaded = false;
     };
 }

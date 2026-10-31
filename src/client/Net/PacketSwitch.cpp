@@ -19,6 +19,7 @@
 
 #include "Handlers/CommonHandlers.h"
 #include "Handlers/CashShopHandlers.h"
+#include "Handlers/MTSHandlers.h"
 #include "Handlers/LoginHandlers.h"
 #include "Handlers/SetfieldHandlers.h"
 #include "Handlers/PlayerHandlers.h"
@@ -68,6 +69,10 @@ namespace jrc
         SHOW_STATUS_INFO = 39,
         MEMO_RESULT      = 41,
         ENABLE_REPORT    = 47,
+
+        SET_ITC = 0x7E,
+        MTS_OPERATION = 0x15C,
+        MTS_WALLET = 0x15B,
 
         // Quest
         QUEST_CLEAR       = 49,
@@ -157,6 +162,7 @@ namespace jrc
         STORAGE       = 309,
 
         KEYMAP      = 335,
+        QUICKSLOT_INIT = 0x9F,
         AUTO_HP_POT = 336,
         AUTO_MP_POT = 337
     };
@@ -167,7 +173,10 @@ namespace jrc
         emplace<PING, PingHandler>();
 
         emplace<0x10, ChangeChannelHandler>();
+        emplace<SET_ITC, SetMTSHandler>();
         emplace<0x7F, SetCashShopHandler>();
+        emplace<MTS_OPERATION, MTSOperationHandler>();
+        emplace<MTS_WALLET, MTSWalletHandler>();
         emplace<0x144, CashBalanceHandler>();
         emplace<0x145, CashOperationHandler>();
 
@@ -210,6 +219,7 @@ namespace jrc
 
         // Player handlers
         emplace<KEYMAP, KeymapHandler>();
+        emplace<QUICKSLOT_INIT, QuickslotInitHandler>();
         emplace<SKILL_MACROS, SkillMacrosHandler>();
         emplace<CHANGE_STATS, ChangeStatsHandler>();
         emplace<GIVE_BUFF, ApplyBuffHandler>();

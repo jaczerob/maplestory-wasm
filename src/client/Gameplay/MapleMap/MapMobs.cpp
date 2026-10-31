@@ -75,6 +75,7 @@ namespace jrc
     void MapMobs::clear()
     {
         mobs.clear();
+        spawns = {};
     }
 
     void MapMobs::set_control(int32_t oid, bool control)

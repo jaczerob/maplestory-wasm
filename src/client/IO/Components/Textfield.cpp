@@ -167,7 +167,7 @@ namespace jrc
             break;
         case KeyType::LETTER:
         case KeyType::NUMBER:
-            if (!pressed)
+            if (pressed)
             {
                 auto c = static_cast<int8_t>(key);
                 if (belowlimit())

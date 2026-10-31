@@ -19,14 +19,19 @@
 #include "KeyAction.h"
 #include "KeyType.h"
 
+#include <array>
 #include <cstdint>
 #include <map>
+#include <optional>
 
 namespace jrc
 {
     class Keyboard
     {
     public:
+        using Quickslots = std::array<uint8_t, 8>;
+        static constexpr Quickslots DEFAULT_QUICKSLOTS{ 42, 82, 71, 73, 29, 83, 79, 81 };
+
         struct Mapping
         {
             KeyType::Id type;
@@ -51,6 +56,7 @@ namespace jrc
 
         Keyboard();
 
+        static bool is_bindable_key(uint8_t key);
         void assign(uint8_t key, uint8_t type, int32_t action);
         void remove(uint8_t key);
         std::map<int32_t, Mapping> get_maplekeys() const;
@@ -61,11 +67,15 @@ namespace jrc
         KeyAction::Id get_ctrl_action(int32_t keycode) const;
         Mapping get_mapping(int32_t keycode) const;
         Mapping get_text_mapping(int32_t keycode, bool shift) const;
+        std::optional<uint8_t> get_maple_key(int32_t glfw_key) const;
+        const Quickslots& get_quickslots() const;
+        bool set_quickslots(const Quickslots& keys);
 
     private:
         std::map<int32_t, Mapping> keymap;
         std::map<int32_t, Mapping> maplekeys;
         std::map<int32_t, KeyAction::Id> textactions;
         std::map<int32_t, bool> keystate;
+        Quickslots quickslots = DEFAULT_QUICKSLOTS;
     };
 }

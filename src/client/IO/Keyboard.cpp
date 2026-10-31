@@ -18,6 +18,7 @@
 #include "Keyboard.h"
 
 #include <GLFW/glfw3.h>
+#include <iterator>
 
 
 namespace jrc
@@ -90,8 +91,16 @@ namespace jrc
         }
     }
 
+    bool Keyboard::is_bindable_key(uint8_t key)
+    {
+        return key < std::size(Keytable) && Keytable[key] != 0;
+    }
+
     void Keyboard::assign(uint8_t key, uint8_t tid, int32_t action)
     {
+        if (!is_bindable_key(key))
+            return;
+
         if (KeyType::Id type = KeyType::typebyid(tid))
         {
             Mapping mapping{ type, action };
@@ -102,6 +111,9 @@ namespace jrc
 
     void Keyboard::remove(uint8_t key)
     {
+        if (!is_bindable_key(key))
+            return;
+
         Mapping mapping{};
         keymap[Keytable[key]] = mapping;
         maplekeys[key] = mapping;
@@ -189,5 +201,30 @@ namespace jrc
         }
 
         return iter->second;
+    }
+
+    std::optional<uint8_t> Keyboard::get_maple_key(int32_t glfw_key) const
+    {
+        for (uint8_t key = 0; key < std::size(Keytable); ++key)
+        {
+            if (Keytable[key] != 0 && Keytable[key] == glfw_key)
+                return key;
+        }
+
+        return {};
+    }
+
+    const Keyboard::Quickslots& Keyboard::get_quickslots() const
+    {
+        return quickslots;
+    }
+
+    bool Keyboard::set_quickslots(const Quickslots& keys)
+    {
+        if (quickslots == keys)
+            return false;
+
+        quickslots = keys;
+        return true;
     }
 }

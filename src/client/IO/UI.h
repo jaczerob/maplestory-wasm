@@ -29,6 +29,7 @@
 #include "../Template/Optional.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace jrc
 {
@@ -100,6 +101,7 @@ namespace jrc
 
         Optional<Textfield> focusedtextfield;
         std::unordered_map<int32_t, bool> is_key_down;
+        std::unordered_set<int32_t> quickslot_keys_down;
         uint64_t cursor_press_id;
 
         bool enabled;

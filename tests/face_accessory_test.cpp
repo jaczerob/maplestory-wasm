@@ -157,3 +157,36 @@ TEST_CASE("Face accessories follow expressions and character attachments")
         test_support::snapshot(test_support::artifact("face-accessories.ppm"), 384, 256);
     }
 }
+
+TEST_CASE("Hair without an overhead layer remains visible over the head")
+{
+    using namespace jrc;
+
+    test_support::NxFile characters("Character.nx", nl::nx::character);
+    test_support::NxFile strings("String.nx", nl::nx::string);
+    CharLook::init();
+    BodyDrawinfo anchors;
+    anchors.init();
+    LookEntry appearance{};
+    appearance.skin = 0;
+    appearance.hairid = 30033;
+    appearance.faceid = 20000;
+    CharLook look(appearance);
+
+    const auto hair = nl::nx::character["Hair"]["00030033.img"]["stand1"]["0"]["hair"];
+    const auto head = nl::nx::character["00012000.img"]["stand1"]["0"]["head"];
+    const auto face = nl::nx::character["Face"]["00020000.img"]["default"]["face"];
+    REQUIRE_MESSAGE((hair.get_bitmap().width() > 0), "Blonde Buzz must have its front hair layer");
+    REQUIRE_MESSAGE((!nl::node(nl::nx::character["Hair"]["00030033.img"]["stand1"]["0"]["hairOverHead"])),
+        "Blonde Buzz must exercise the missing overhead-layer case");
+
+    render(look, Stance::STAND1, Expression::DEFAULT);
+    const auto hair_index = find_draw(hair);
+    REQUIRE_MESSAGE((find_draw(head) < hair_index && hair_index < find_draw(face)),
+        "Front hair must cover the head while staying behind facial features");
+
+    render(look, Stance::LADDER, Expression::DEFAULT);
+    CHECK(std::none_of(draws.begin(), draws.end(), [&](const Draw& draw) {
+        return draw.bitmap.id() == hair.get_bitmap().id();
+    }));
+}

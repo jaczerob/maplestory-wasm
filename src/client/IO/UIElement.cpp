@@ -55,7 +55,8 @@ namespace jrc
                 "CHARCREATION", "SOFTKEYBOARD", "STATUSMESSENGER", "STATUSBAR", "BUFFLIST",
                 "NOTICE", "NPCTALK", "SHOP", "STORAGE", "STATSINFO", "ITEMINVENTORY",
                 "EQUIPINVENTORY", "SKILLBOOK", "KEYCONFIG", "PARTY", "MINIMAP", "WORLDMAP",
-                "QUESTLOG", "QUESTTRACKER", "CASHSHOP", "CASHDIALOG"
+                "QUESTLOG", "QUESTTRACKER", "MAINMENU", "SYSTEMMENU", "CASHSHOP", "CASHDIALOG",
+                "QUICKSLOTCONFIG"
             };
             static_assert(sizeof(windows) / sizeof(*windows) == NUM_TYPES);
             std::cerr << "[UI layout] " << windows[type] << ' ' << kinds[static_cast<size_t>(kind)]

@@ -19,6 +19,7 @@
 
 #include "UIStateLogin.h"
 #include "UIStateGame.h"
+#include "UITypes/UIQuickSlot.h"
 #include "UITypes/UIWorldMap.h"
 #include "Window.h"
 #include "../Audio/Audio.h"
@@ -27,6 +28,10 @@
 
 #include <GLFW/glfw3.h>
 #include <list>
+
+#ifdef MS_PLATFORM_WASM
+#include <emscripten.h>
+#endif
 
 namespace jrc
 {
@@ -90,7 +95,11 @@ namespace jrc
 
     void UI::quit()
     {
+#ifdef MS_PLATFORM_WASM
+        EM_ASM({ window.location.reload(); });
+#else
         quitted = true;
+#endif
     }
 
     bool UI::not_quitted() const
@@ -201,6 +210,13 @@ namespace jrc
     {
         if (!enabled && pressed)
             return;
+        if (quickslot_keys_down.count(keycode))
+        {
+            if (!pressed)
+                quickslot_keys_down.erase(keycode);
+            is_key_down[keycode] = pressed;
+            return;
+        }
         bool escape = keycode == GLFW_KEY_ESCAPE;
 
         if (escape)
@@ -208,6 +224,7 @@ namespace jrc
             std::list<UIElement::Type> escape_types = {
                 UIElement::WORLDMAP,
                 UIElement::KEYCONFIG,
+                UIElement::QUICKSLOTCONFIG,
                 UIElement::NPCTALK,
                 UIElement::SHOP,
                 UIElement::ITEMINVENTORY,
@@ -218,7 +235,9 @@ namespace jrc
                 UIElement::QUESTLOG,
                 UIElement::NOTICE,
                 UIElement::CASHDIALOG,
-                UIElement::CASHSHOP
+                UIElement::CASHSHOP,
+                UIElement::MAINMENU,
+                UIElement::SYSTEMMENU
             };
 
             if (UIElement* front = state->get_front(escape_types))
@@ -232,6 +251,21 @@ namespace jrc
 
             is_key_down[keycode] = pressed;
             return;
+        }
+
+        if (pressed)
+        {
+            if (auto quickslot = get_element<UIQuickSlot>(); quickslot && quickslot->is_active() &&
+                state->get_front(std::list<UIElement::Type>{UIElement::NOTICE, UIElement::QUICKSLOTCONFIG}) == quickslot.get())
+            {
+                if (!is_key_down[keycode])
+                {
+                    quickslot->assign_key(keycode);
+                    quickslot_keys_down.insert(keycode);
+                }
+                is_key_down[keycode] = true;
+                return;
+            }
         }
 
         if (focusedtextfield)

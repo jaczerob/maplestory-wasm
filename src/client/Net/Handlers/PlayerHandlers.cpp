@@ -26,6 +26,7 @@
 #include "../../IO/UITypes/UISkillBook.h"
 #include "../../Net/Packets/GameplayPackets.h"
 #include "../../Gameplay/CashShop.h"
+#include "Helpers/QuickslotParser.h"
 
 namespace jrc
 {
@@ -40,6 +41,13 @@ namespace jrc
 
             UI::get().add_keymapping(i, type, action);
         }
+    }
+
+    void QuickslotInitHandler::handle(InPacket& recv) const
+    {
+        Keyboard::Quickslots keys;
+        parse_quickslot_init(recv, keys);
+        UI::get().get_keyboard().set_quickslots(keys);
     }
 
 

@@ -17,12 +17,14 @@
 //////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 namespace jrc
 {
     namespace ExpTable
     {
-        constexpr size_t LEVELCAP = 201;
+        constexpr std::size_t LEVELCAP = 201;
         extern const std::array<int64_t, LEVELCAP> values;
     }
 }

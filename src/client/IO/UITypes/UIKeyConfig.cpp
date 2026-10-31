@@ -4,6 +4,7 @@
 #include "UIKeyConfig.h"
 
 #include "UINotice.h"
+#include "UIQuickSlot.h"
 
 #include "../UI.h"
 #include "../Components/MapleButton.h"
@@ -292,6 +293,8 @@ namespace jrc
             toggle_active();
             break;
         case KEYSETTING:
+            UI::get().emplace<UIQuickSlot>(*keyboard);
+            break;
         default:
             break;
         }
@@ -357,6 +360,96 @@ namespace jrc
         dirty = true;
         rebuild_dynamic_icons();
         rebuild_bound_actions();
+    }
+
+    void UIKeyConfig::assign_quickslot_mapping(uint8_t key, Keyboard::Mapping mapping)
+    {
+        if (!Keyboard::is_bindable_key(key) ||
+            (mapping.type != KeyType::SKILL && mapping.type != KeyType::ITEM))
+        {
+            return;
+        }
+
+        std::set<uint8_t> targets{key};
+        if (key == KeyConfig::LEFT_CONTROL || key == KeyConfig::RIGHT_CONTROL)
+        {
+            targets.insert(KeyConfig::LEFT_CONTROL);
+            targets.insert(KeyConfig::RIGHT_CONTROL);
+        }
+        else if (key == KeyConfig::LEFT_ALT || key == KeyConfig::RIGHT_ALT)
+        {
+            targets.insert(KeyConfig::LEFT_ALT);
+            targets.insert(KeyConfig::RIGHT_ALT);
+        }
+        else if (key == KeyConfig::LEFT_SHIFT || key == KeyConfig::RIGHT_SHIFT)
+        {
+            targets.insert(KeyConfig::LEFT_SHIFT);
+            targets.insert(KeyConfig::RIGHT_SHIFT);
+        }
+
+        Keyboard& keyboard = UI::get().get_keyboard();
+        std::vector<std::tuple<int32_t, uint8_t, int32_t>> updates;
+        const std::map<int32_t, Keyboard::Mapping> current = keyboard.get_maplekeys();
+        for (const auto& entry : current)
+        {
+            uint8_t key_id = static_cast<uint8_t>(entry.first);
+            if (entry.second == mapping && targets.count(key_id) == 0)
+            {
+                updates.emplace_back(key_id, KeyType::NONE, 0);
+            }
+        }
+
+        for (uint8_t target : targets)
+        {
+            if (keyboard.get_maple_mapping(target) != mapping)
+            {
+                updates.emplace_back(target, static_cast<uint8_t>(mapping.type), mapping.action);
+            }
+        }
+
+        if (!updates.empty())
+        {
+            ChangeKeyMapPacket(updates).dispatch();
+            for (const auto& update : updates)
+            {
+                uint8_t key_id = static_cast<uint8_t>(std::get<0>(update));
+                uint8_t type = std::get<1>(update);
+                if (type == KeyType::NONE)
+                {
+                    keyboard.remove(key_id);
+                }
+                else
+                {
+                    keyboard.assign(key_id, type, std::get<2>(update));
+                }
+            }
+        }
+
+        if (auto config = UI::get().get_element<UIKeyConfig>())
+        {
+            config->sync_quickslot_mapping(targets, mapping);
+        }
+    }
+
+    void UIKeyConfig::sync_quickslot_mapping(const std::set<uint8_t>& keys, Keyboard::Mapping mapping)
+    {
+        erase_mapping_value(staged_mappings, mapping);
+        for (uint8_t key : keys)
+        {
+            staged_mappings[key] = mapping;
+        }
+
+        rebuild_dynamic_icons();
+        rebuild_bound_actions();
+        dirty = false;
+        for (int32_t key = 1; key < KeyConfig::LENGTH; ++key)
+        {
+            if (staged_mapping(key) != keyboard->get_maple_mapping(key))
+            {
+                dirty = true;
+                break;
+            }
+        }
     }
 
     void UIKeyConfig::load_key_bounds()

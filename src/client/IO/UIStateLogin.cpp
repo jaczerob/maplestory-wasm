@@ -38,12 +38,15 @@ namespace jrc
 
     void UIStateLogin::draw(float inter, Point<int16_t>) const
     {
+        UIElement* focused_element = elements.find(focused).second().get();
         for (auto iter : elements)
         {
             UIElement* element = iter.second.get();
-            if (element && element->is_active())
+            if (element && element != focused_element && element->is_active())
                 element->draw_checked(inter);
         }
+        if (focused_element && focused_element->is_active())
+            focused_element->draw_checked(inter);
     }
 
     void UIStateLogin::update()

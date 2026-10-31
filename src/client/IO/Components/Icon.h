@@ -18,6 +18,7 @@
 #pragma once
 #include "../../Character/Inventory/Inventory.h"
 #include "../../Graphics/Texture.h"
+#include "../Keyboard.h"
 
 #include <memory>
 
@@ -35,6 +36,7 @@ namespace jrc
             virtual void drop_on_equips(Equipslot::Id eqslot) const = 0;
             virtual void drop_on_items(InventoryType::Id tab, Equipslot::Id eqslot, int16_t slot, bool equip) const = 0;
             virtual void drop_on_bindings(Point<int16_t>, bool) const {}
+            virtual Keyboard::Mapping get_key_mapping() const { return {}; }
         };
 
 
@@ -54,6 +56,7 @@ namespace jrc
         void drop_on_equips(Equipslot::Id eqslot) const;
         void drop_on_items(InventoryType::Id tab, Equipslot::Id eqslot, int16_t slot, bool equip) const;
         void drop_on_bindings(Point<int16_t> cursorpos, bool remove) const;
+        Keyboard::Mapping get_key_mapping() const;
         void start_drag(Point<int16_t> offset);
         void reset();
         void set_count(int32_t count);

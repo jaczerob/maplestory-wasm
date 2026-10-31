@@ -19,6 +19,7 @@
 #include "../OutPacket.h"
 
 #include "../../Character/MapleStat.h"
+#include "../../IO/Keyboard.h"
 #include "../../IO/KeyType.h"
 
 #include <tuple>
@@ -67,6 +68,21 @@ namespace jrc
                 write_int(std::get<0>(entry)); // key
                 write_byte(static_cast<int8_t>(std::get<1>(entry))); // type
                 write_int(std::get<2>(entry)); // action
+            }
+        }
+    };
+
+
+    // Sends the eight Maple key codes assigned to the quick slots.
+    // Opcode: CHANGE_QUICKSLOT(0xB7)
+    class ChangeQuickslotPacket : public OutPacket
+    {
+    public:
+        explicit ChangeQuickslotPacket(const Keyboard::Quickslots& keys) : OutPacket(CHANGE_QUICKSLOT)
+        {
+            for (uint8_t key : keys)
+            {
+                write_int(key);
             }
         }
     };

@@ -136,10 +136,10 @@ namespace jrc
             }
 
             body->draw(interstance, Body::ARM_BELOW_HEAD_OVER_MAIL, interframe, args);
+            body->draw(interstance, Body::HEAD, interframe, args);
             hair->draw(interstance, Hair::DEFAULT, interframe, args);
             equips.draw(Equipslot::SHIELD, interstance, Clothing::SHIELD_OVER_HAIR, interframe, args);
             equips.draw(Equipslot::EARRINGS, interstance, Clothing::EARRINGS, interframe, args);
-            body->draw(interstance, Body::HEAD, interframe, args);
             hair->draw(interstance, Hair::SHADE, interframe, args);
             equips.draw_face_accessory(interexpression, Clothing::FaceLayer::BELOW_FACE, interexpframe, faceargs);
             face->draw(interexpression, interexpframe, faceargs);

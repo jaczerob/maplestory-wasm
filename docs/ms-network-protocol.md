@@ -2078,7 +2078,10 @@ movementData    byte[]  Movement fragments
 
 ```
 Field       Type     Notes
-quickslots  int[8]   Eight quick-slot bindings (skill/item IDs, 0 = empty)
+quickslots  int[8]   Eight Maple key codes, each 0–255; exactly 32 payload bytes
+
+Cosmic also accepts the sign-extended int32 representation of byte values 128–255.
+Other values, truncated packets, and trailing bytes are rejected without changing the saved layout.
 ```
 
 ---
@@ -3724,6 +3727,21 @@ Field     Type    Notes
   type    byte    0=none, 1=skill, 2=item, 4=special
   action  int     Skill/item/action ID
 ```
+
+---
+
+### 0x009F — QUICKSLOT_INIT
+
+**Direction:** Server to client. Sent after `KEYMAP` during native character entry.
+
+```
+Field       Type       Notes
+custom      byte       0 = use native defaults; 1 = custom layout follows
+[if custom]
+  quickslots int[8]    Eight key codes; each int32 carries one signed byte value
+```
+
+The default layout is `42, 82, 71, 73, 29, 83, 79, 81`. A custom layout has exactly eight int32 values. Clients interpret signed values from -128 through -1 as key codes 128 through 255.
 
 ---
 

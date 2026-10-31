@@ -76,6 +76,11 @@ namespace jrc
         type->drop_on_bindings(cursorpos, remove);
     }
 
+    Keyboard::Mapping Icon::get_key_mapping() const
+    {
+        return type->get_key_mapping();
+    }
+
     void Icon::start_drag(Point<int16_t> offset)
     {
         cursoroffset = offset;

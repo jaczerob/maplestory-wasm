@@ -117,6 +117,7 @@ namespace jrc
         SPEND_AP = 87,
         SPEND_SP = 90,
         CHANGE_KEYMAP = 135,
+        CHANGE_QUICKSLOT = 0xB7,
 
         // Skill
         USE_SKILL = 91,

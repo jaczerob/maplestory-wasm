@@ -556,4 +556,12 @@ namespace jrc
                 keyconfig->stage_mapping(cursorposition, mapping);
         }
     }
+
+    Keyboard::Mapping UIItemInventory::ItemIcon::get_key_mapping() const
+    {
+        if (sourcetab == InventoryType::USE || sourcetab == InventoryType::SETUP)
+            return { KeyType::ITEM, item_id };
+
+        return {};
+    }
 }

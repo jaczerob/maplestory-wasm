@@ -36,6 +36,15 @@ jobs:
       CXX: clang++
     steps:
       - uses: actions/checkout@v4
+      - name: Install native keyboard dependency
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            brew install glfw
+          else
+            sudo apt-get update
+            sudo apt-get install -y libglfw3-dev
+          fi
       - name: Cache pinned test dependency
         uses: actions/cache@v4
         with:

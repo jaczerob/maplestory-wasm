@@ -56,13 +56,15 @@ export TEST_ASSET_DIR=/absolute/path/to/assets
 ./scripts/run_tests.sh --assets -- -R npc       # NPC regressions
 ```
 
+Native tests require GLFW (`libglfw3-dev` on Ubuntu or `brew install glfw` on macOS).
 Asset tests also need FreeType headers/library and native OpenGL headers. On
 macOS, the Xcode command-line tools supply OpenGL and `brew install freetype`
 supplies FreeType. On Ubuntu, install `libfreetype-dev libgl-dev`.
 
 The asset suite reads metadata from the full asset root. It requires
-`shared/Character.meta`, `Etc.meta`, `Item.meta`, `Npc.meta`, `Quest.meta`,
-`String.meta`, `UI.meta`, and `UI_83.meta`. `UI.meta` is the client's newer UI
+`shared/Character.meta`, `Etc.meta`, `Item.meta`, `Map.meta`, `Mob.meta`, `Npc.meta`,
+`Quest.meta`, `Reactor.meta`, `Skill.meta`, `String.meta`, `UI.meta`, and `UI_83.meta`.
+`UI.meta` is the client's newer UI
 set; `UI_83.meta` supplies the classic Cash Shop artwork. Configuration fails
 with the missing path when an explicitly enabled asset suite lacks a required
 file.

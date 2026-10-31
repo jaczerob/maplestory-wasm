@@ -16,12 +16,17 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.    //
 //////////////////////////////////////////////////////////////////////////////
 #include "UIStatusBar.h"
+#include "UIHudMenus.h"
+#include "UIKeyConfig.h"
 
 #include "../UI.h"
 #include "../Components/MapleButton.h"
 
 #include "../../Character/ExpTable.h"
 #include "../../Constants.h"
+#include "../../Data/ItemData.h"
+#include "../../Data/SkillData.h"
+#include "../../Graphics/Geometry.h"
 
 #include "nlnx/nx.hpp"
 
@@ -31,8 +36,22 @@ namespace jrc
     constexpr Point<int16_t> UIStatusbar::POSITION;
     constexpr Point<int16_t> UIStatusbar::DIMENSION;
 
+    namespace
+    {
+        uint8_t quickslot_label_key(uint8_t key)
+        {
+            switch (key)
+            {
+            case 85: return 29;
+            case 86: return 42;
+            case 87: return 56;
+            default: return key;
+            }
+        }
+    }
+
     UIStatusbar::UIStatusbar(const CharStats& st)
-        : UIElement(POSITION, DIMENSION), stats(st), chatbar(POSITION)
+        : UIElement(POSITION, DIMENSION), stats(st), keyboard(&UI::get().get_keyboard()), chatbar(POSITION)
     {
         nl::node mainbar = nl::nx::ui["StatusBar2.img"]["mainBar"];
 
@@ -82,12 +101,47 @@ namespace jrc
         buttons[BT_EQUIPS]    = std::make_unique<MapleButton>(mainbar["BtEquip"]);
         buttons[BT_SKILL]     = std::make_unique<MapleButton>(mainbar["BtSkill"]);
 
+        nl::node quickslot_src = mainbar["quickSlot"];
+        quickslot = Texture(quickslot_src["quickSlot"]);
+        buttons[BT_QSOPEN] = std::make_unique<MapleButton>(quickslot_src["BtOpen"]);
+        buttons[BT_QSCLOSE] = std::make_unique<MapleButton>(quickslot_src["BtClose"]);
+        buttons[BT_QSCLOSE]->set_active(false);
+
+        nl::node key_config = nl::nx::ui["UIWindow.img"]["KeyConfig"];
+        nl::node quickslot_labels = key_config["quickslotConfig"]["key"];
+        for (int key = 1; key < 256; ++key)
+        {
+            if (!Keyboard::is_bindable_key(static_cast<uint8_t>(key)))
+            {
+                continue;
+            }
+
+            const std::string name = std::to_string(key);
+            nl::node label = quickslot_labels[name];
+            if (!label)
+            {
+                label = key_config["key"][name];
+            }
+            if (label)
+            {
+                quickslot_key_labels.emplace(static_cast<uint8_t>(key), Texture(label));
+            }
+        }
+
         update_layout_position();
+        update_quickslot_icons();
     }
 
     void UIStatusbar::draw(float alpha) const
     {
-        UIElement::draw(alpha);
+        if (quickslot_open)
+        {
+            quickslot.draw(DrawArgument(position));
+            draw_quickslot_icons();
+        }
+
+        draw_sprites(alpha);
+        draw_buttons(alpha);
 
         expbar.draw(position + Point<int16_t>(-261, -15));
         hpbar.draw(position + Point<int16_t>(-261, -31));
@@ -142,6 +196,8 @@ namespace jrc
         {
             iter.second -= Constants::TIMESTEP;
         }
+
+        update_quickslot_icons();
     }
 
     void UIStatusbar::update_layout_position()
@@ -157,6 +213,21 @@ namespace jrc
     {
         switch (id)
         {
+        case BT_TRADE:
+            UI::get().send_menu(KeyAction::MTS);
+            return Button::NORMAL;
+        case BT_MENU:
+            UI::get().send_menu(KeyAction::MAINMENU);
+            return Button::NORMAL;
+        case BT_OPTIONS:
+            UI::get().emplace<UISystemMenu>(system_menu_anchor());
+            return Button::NORMAL;
+        case BT_QSOPEN:
+            toggle_quickslot();
+            return Button::NORMAL;
+        case BT_QSCLOSE:
+            toggle_quickslot();
+            return Button::NORMAL;
         case BT_CASHSHOP:
             UI::get().send_menu(KeyAction::CASHSHOP);
             return Button::NORMAL;
@@ -180,6 +251,29 @@ namespace jrc
         }
     }
 
+    void UIStatusbar::toggle_quickslot()
+    {
+        quickslot_open = !quickslot_open;
+        buttons[BT_QSOPEN]->set_active(!quickslot_open);
+        buttons[BT_QSCLOSE]->set_active(quickslot_open);
+        buttons[BT_QSOPEN]->set_state(Button::NORMAL);
+        buttons[BT_QSCLOSE]->set_state(Button::NORMAL);
+    }
+
+    Point<int16_t> UIStatusbar::menu_anchor() const
+    {
+        const Rectangle<int16_t> bounds = buttons.at(BT_MENU)->bounds(position);
+        return { static_cast<int16_t>((bounds.l() + bounds.r()) / 2),
+                 static_cast<int16_t>((bounds.t() + bounds.b()) / 2) };
+    }
+
+    Point<int16_t> UIStatusbar::system_menu_anchor() const
+    {
+        const Rectangle<int16_t> bounds = buttons.at(BT_OPTIONS)->bounds(position);
+        return { static_cast<int16_t>((bounds.l() + bounds.r()) / 2),
+                 static_cast<int16_t>((bounds.t() + bounds.b()) / 2) };
+    }
+
     bool UIStatusbar::is_in_range(Point<int16_t> cursorpos) const
     {
         Rectangle<int16_t> bounds(
@@ -187,7 +281,17 @@ namespace jrc
             position - Point<int16_t>(512, 84) + dimension
         );
 
-        return bounds.contains(cursorpos) || chatbar.is_in_range(cursorpos);
+        if (bounds.contains(cursorpos) || chatbar.is_in_range(cursorpos))
+            return true;
+
+        if (quickslot_open && quickslot_bounds().contains(cursorpos))
+            return true;
+
+        for (const auto& button : buttons)
+            if (button.second->is_active() && button.second->bounds(position).contains(cursorpos))
+                return true;
+
+        return false;
     }
 
     bool UIStatusbar::remove_cursor(bool clicked, Point<int16_t> cursorpos)
@@ -213,7 +317,138 @@ namespace jrc
         }
 
         chatbar.send_cursor(pressed, cursorpos);
-        return UIElement::send_cursor(pressed, cursorpos);
+        if (CursorResult result = UIElement::send_cursor(pressed, cursorpos))
+        {
+            return result;
+        }
+
+        if (quickslot_open && quickslot_bounds().contains(cursorpos))
+        {
+            return {Cursor::IDLE, true};
+        }
+        return {};
+    }
+
+    void UIStatusbar::send_icon(const Icon& dropped, Point<int16_t> cursorpos)
+    {
+        if (!quickslot_open)
+        {
+            return;
+        }
+
+        int slot = quickslot_by_position(cursorpos);
+        Keyboard::Mapping mapping = dropped.get_key_mapping();
+        if (slot < 0 || (mapping.type != KeyType::SKILL && mapping.type != KeyType::ITEM))
+        {
+            return;
+        }
+
+        UIKeyConfig::assign_quickslot_mapping(keyboard->get_quickslots()[slot], mapping);
+    }
+
+    void UIStatusbar::update_quickslot_icons()
+    {
+        const Keyboard::Quickslots& keys = keyboard->get_quickslots();
+        nl::node action_icons = nl::nx::ui["UIWindow.img"]["KeyConfig"]["icon"];
+
+        for (size_t slot = 0; slot < keys.size(); ++slot)
+        {
+            Keyboard::Mapping mapping = keyboard->get_maple_mapping(keys[slot]);
+            if (quickslot_icons_loaded && displayed_quickslots[slot] == keys[slot] &&
+                quickslot_mappings[slot] == mapping)
+            {
+                continue;
+            }
+
+            displayed_quickslots[slot] = keys[slot];
+            quickslot_mappings[slot] = mapping;
+            quickslot_icons[slot].reset();
+
+            Texture texture;
+            if (mapping.type == KeyType::SKILL && mapping.action > 0)
+            {
+                texture = SkillData::get(mapping.action).get_icon(SkillData::NORMAL);
+            }
+            else if (mapping.type == KeyType::ITEM && mapping.action > 0)
+            {
+                const ItemData& item = ItemData::get(mapping.action);
+                if (item)
+                {
+                    texture = item.get_icon(false);
+                }
+            }
+            else if ((mapping.type == KeyType::MENU || mapping.type == KeyType::ACTION || mapping.type == KeyType::FACE) &&
+                     mapping.action >= 0 && mapping.action <= 106)
+            {
+                nl::node icon = action_icons[std::to_string(mapping.action)];
+                if (icon)
+                {
+                    texture = Texture(icon);
+                }
+            }
+
+            if (texture.is_valid())
+            {
+                quickslot_icons[slot] = std::make_unique<Icon>(
+                    std::make_unique<Icon::NullType>(), texture, -1
+                );
+            }
+        }
+
+        quickslot_icons_loaded = true;
+    }
+
+    void UIStatusbar::draw_quickslot_icons() const
+    {
+        const Point<int16_t> origin = position - quickslot.get_origin();
+        static const Text scroll_lock_label(Text::A11M, Text::CENTER, Text::WHITE, "ScrLk");
+        for (size_t slot = 0; slot < quickslot_icons.size(); ++slot)
+        {
+            Point<int16_t> slot_position = origin + Point<int16_t>(
+                7 + static_cast<int16_t>(slot % 4) * 33,
+                16 + static_cast<int16_t>(slot / 4) * 33
+            );
+
+            if (quickslot_icons[slot])
+            {
+                quickslot_icons[slot]->draw(slot_position);
+            }
+
+            if (displayed_quickslots[slot] == 88)
+            {
+                ColorBox(28, 11, Geometry::BLACK, 0.6f).draw(slot_position);
+                scroll_lock_label.draw(slot_position + Point<int16_t>(14, 6));
+            }
+            else if (auto label = quickslot_key_labels.find(quickslot_label_key(displayed_quickslots[slot]));
+                     label != quickslot_key_labels.end())
+            {
+                ColorBox(label->second.width(), label->second.height(), Geometry::BLACK, 0.6f).draw(slot_position);
+                label->second.draw(DrawArgument(slot_position));
+            }
+        }
+    }
+
+    int UIStatusbar::quickslot_by_position(Point<int16_t> cursorpos) const
+    {
+        const Point<int16_t> origin = position - quickslot.get_origin();
+        for (int slot = 0; slot < 8; ++slot)
+        {
+            Point<int16_t> slot_position = origin + Point<int16_t>(
+                7 + static_cast<int16_t>(slot % 4) * 33,
+                16 + static_cast<int16_t>(slot / 4) * 33
+            );
+            if (Rectangle<int16_t>(slot_position, slot_position + Point<int16_t>(30, 30)).contains(cursorpos))
+            {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    Rectangle<int16_t> UIStatusbar::quickslot_bounds() const
+    {
+        const Point<int16_t> top_left = position - quickslot.get_origin();
+        return {top_left, top_left + quickslot.get_dimensions()};
     }
 
     void UIStatusbar::send_chatline(const std::string& line, UIChatbar::LineType type)

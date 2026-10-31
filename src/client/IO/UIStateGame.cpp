@@ -17,6 +17,7 @@
 //////////////////////////////////////////////////////////////////////////////
 #include "UIStateGame.h"
 #include "UITypes/UICashShop.h"
+#include "UITypes/UIMTS.h"
 #include "../Gameplay/CashShop.h"
 #include "UI.h"
 
@@ -36,6 +37,7 @@
 #include "UITypes/UIWorldMap.h"
 #include "UITypes/UIQuestLog.h"
 #include "UITypes/UIQuestTracker.h"
+#include "UITypes/UIHudMenus.h"
 
 #include "../Constants.h"
 #include "../Character/Inventory/InventoryType.h"
@@ -81,7 +83,10 @@ namespace jrc
 
         if (cash_shop)
         {
-            emplace<UICashShop>();
+            if (CashShop::get().trading)
+                emplace<UIMTS>();
+            else
+                emplace<UICashShop>();
             return;
         }
 
@@ -200,6 +205,11 @@ namespace jrc
         }
         if (CashShop::get().active())
             return;
+        if (pressed && escape)
+        {
+            send_key(KeyType::MENU, KeyAction::MAINMENU, true, false);
+            return;
+        }
 
         if (pressed && type == KeyType::ACTION && action == KeyAction::RETURN)
         {
@@ -217,8 +227,21 @@ namespace jrc
             {
                 switch (action)
                 {
+                case KeyAction::TOGGLEQS:
+                    if (auto statusbar = UI::get().get_element<UIStatusbar>())
+                        statusbar->toggle_quickslot();
+                    break;
+                case KeyAction::MAINMENU:
+                    if (auto statusbar = UI::get().get_element<UIStatusbar>())
+                        emplace<UIMainMenu>(statusbar->menu_anchor());
+                    else
+                        emplace<UIMainMenu>();
+                    break;
                 case KeyAction::CASHSHOP:
                     CashShop::get().enter();
+                    break;
+                case KeyAction::MTS:
+                    CashShop::get().enter(true);
                     break;
                 case KeyAction::CHARSTATS:
                     emplace<UIStatsinfo>(
