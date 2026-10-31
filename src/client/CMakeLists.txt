@@ -79,6 +79,11 @@ list(APPEND SOURCES
 
 add_executable(JourneyClient ${SOURCES})
 
+if(EMSCRIPTEN)
+    set_property(TARGET JourneyClient APPEND PROPERTY LINK_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/LazyFS/lazyfs.js")
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     if(WARNINGS_AS_ERRORS)
         target_compile_options(JourneyClient PRIVATE

@@ -26,11 +26,7 @@ namespace nl {
     namespace nx {
         std::vector<std::unique_ptr<file>> files;
         bool exists(std::string name) {
-#ifdef MS_PLATFORM_WASM
-            return true;
-#else
-            return std::ifstream(name).is_open();
-#endif
+            return file::exists(name);
         }
         node add_file(std::string name) {
             if (!exists(name))

@@ -49,6 +49,10 @@ namespace LazyFS
 	{
 		if (!backend_ || !backend_->is_open())
 			return nullptr;
+		if (size == 0)
+			return nullptr;
+		if (offset > backend_->size() || size > backend_->size() - offset)
+			return nullptr;
 
 		size_t chunk_index = offset / CHUNK_SIZE;
 		size_t chunk_offset = offset % CHUNK_SIZE;
@@ -60,15 +64,8 @@ namespace LazyFS
 			if (!chunk)
 				return nullptr;
 
-			// Verify chunk data is large enough (EOF handling)
 			if (chunk->data.size() < chunk_offset + size)
-			{
-				// If we request data past EOF inside a chunk, we could return nullptr or short read
-				// But get_data_at implies we expect valid data.
-				// For now, allow reading partial if it fits in chunk, but strict check is safer.
-				if (chunk->data.size() <= chunk_offset)
-					return nullptr;
-			}
+				return nullptr;
 			return chunk->data.data() + chunk_offset;
 		}
 
@@ -89,13 +86,8 @@ namespace LazyFS
 			if (!chunk)
 				return nullptr;
 
-			// Handle EOF within chunk
 			if (chunk->data.size() < current_chunk_off + to_copy)
-			{
-				if (current_chunk_off >= chunk->data.size())
-					break; // EOF reached
-				to_copy = chunk->data.size() - current_chunk_off;
-			}
+				return nullptr;
 
 			std::memcpy(stitch_buffer_.data() + bytes_copied, chunk->data.data() + current_chunk_off, to_copy);
 			bytes_copied += to_copy;
@@ -105,7 +97,7 @@ namespace LazyFS
 				break; // Should not happen unless logic error or true EOF
 		}
 
-		return stitch_buffer_.data();
+		return bytes_copied == size ? stitch_buffer_.data() : nullptr;
 	}
 
 	LazyFileLoader::Chunk* LazyFileLoader::get_or_load_chunk(size_t chunk_index)

@@ -32,6 +32,7 @@ var LazyFS = {
 	wsConnected: false,
 	wsConnecting: false,
 	wsQueue: [], // Queued requests while connecting
+	connectionGeneration: 0,
 
 	// Pending requests: Map<requestId, {resolve, reject}>
 	pendingRequests: new Map(),
@@ -240,13 +241,21 @@ var LazyFS = {
 
 		console.log('[LazyFS] Connecting to assets server:', this.ASSETS_WS_URL);
 		this.wsConnecting = true;
+		this.connectionGeneration++;
+		for (const fileEntry of this.files.values()) {
+			fileEntry.size = null;
+			fileEntry.version = null;
+			fileEntry.generation++;
+		}
 
 		return new Promise((resolve, reject) => {
 			try {
+				const connectionGeneration = this.connectionGeneration;
 				this.ws = new WebSocket(this.ASSETS_WS_URL);
 				this.ws.binaryType = 'arraybuffer'; // Receive binary as ArrayBuffer
 
 				this.ws.onopen = () => {
+					if (connectionGeneration !== this.connectionGeneration) return;
 					console.log('[LazyFS] WebSocket connected');
 					this.wsConnected = true;
 					this.wsConnecting = false;
@@ -261,19 +270,23 @@ var LazyFS = {
 				};
 
 				this.ws.onmessage = (event) => {
-					this.handleMessage(event.data);
+					if (connectionGeneration === this.connectionGeneration) this.handleMessage(event.data);
 				};
 
 				this.ws.onerror = (error) => {
+					if (connectionGeneration !== this.connectionGeneration) return;
 					console.error('[LazyFS] WebSocket error:', error);
 					this.wsConnecting = false;
 					reject(error);
 				};
 
 				this.ws.onclose = () => {
+					if (connectionGeneration !== this.connectionGeneration) return;
 					console.log('[LazyFS] WebSocket disconnected');
 					this.wsConnected = false;
 					this.ws = null;
+					for (const request of this.pendingRequests.values()) request.reject(new Error('Asset connection closed'));
+					this.pendingRequests.clear();
 				};
 			} catch (e) {
 				console.error('[LazyFS] Failed to create WebSocket:', e);
@@ -313,7 +326,17 @@ var LazyFS = {
 			if (msg.type === 'size') {
 				if (this.files.has(msg.file)) {
 					const fileEntry = this.files.get(msg.file);
+					if (fileEntry.version !== null && fileEntry.version !== msg.version) {
+						fileEntry.generation++;
+						for (const [pendingKey, request] of this.pendingRequests) {
+							if (pendingKey !== `size:${msg.file}` && request.file === msg.file && request.generation !== fileEntry.generation) {
+								this.pendingRequests.delete(pendingKey);
+								request.reject(new Error(`Asset version changed while loading ${msg.file}`));
+							}
+						}
+					}
 					fileEntry.version = msg.version;
+					fileEntry.size = msg.size;
 				}
 				// File size response
 				const key = `size:${msg.file}`;
@@ -332,6 +355,14 @@ var LazyFS = {
 				}
 			} else if (msg.type === 'error') {
 				console.error('[LazyFS] Server error:', msg.message);
+				const key = msg.index !== undefined
+					? `chunk:${msg.file}:${msg.index}`
+					: msg.start !== undefined ? `batch:${msg.file}:${msg.start}:${msg.end}` : `size:${msg.file}`;
+				const pending = this.pendingRequests.get(key);
+				if (pending) {
+					this.pendingRequests.delete(key);
+					pending.reject(new Error(msg.message));
+				}
 			}
 		} catch (e) {
 			console.error('[LazyFS] Error parsing message:', e);
@@ -355,9 +386,21 @@ var LazyFS = {
 		const dataStart = 5 + filenameLen;
 		const chunkData = new Uint8Array(buffer, dataStart);
 
-		// Store in cache (memory)
+		const pendingKey = `chunk:${filename}:${chunkIndex}`;
+		const pendingChunk = this.pendingRequests.get(pendingKey);
+		const pendingBatch = [...this.pendingRequests.entries()].find(([key]) => {
+			const prefix = `batch:${filename}:`;
+			if (!key.startsWith(prefix)) return false;
+			const [start, end] = key.slice(prefix.length).split(':').map(Number);
+			return chunkIndex >= start && chunkIndex <= end;
+		});
+		const request = pendingChunk || (pendingBatch && pendingBatch[1]);
 		const fileEntry = this.files.get(filename);
-		const versionTag = this.getFileVersionTag(fileEntry);
+		if (!request || !fileEntry || request.connectionGeneration !== this.connectionGeneration ||
+			request.generation !== fileEntry.generation) return;
+		const versionTag = request.versionTag;
+
+		// Store in cache (memory)
 		const cacheKey = this.getChunkCacheKey(filename, versionTag, chunkIndex);
 		this.chunkCache.set(cacheKey, chunkData);
 
@@ -370,11 +413,9 @@ var LazyFS = {
 		this.logFetch(filename, chunkIndex, chunkData.length, false);
 
 		// Resolve any pending request for this specific chunk
-		const pendingKey = `chunk:${filename}:${chunkIndex}`;
-		const pending = this.pendingRequests.get(pendingKey);
-		if (pending) {
+		if (pendingChunk) {
 			this.pendingRequests.delete(pendingKey);
-			pending.resolve(chunkData);
+			pendingChunk.resolve(chunkData);
 		}
 	},
 
@@ -388,6 +429,7 @@ var LazyFS = {
 		this.files.set(filepath, {
 			size: null,
 			version: null,
+			generation: 0,
 		});
 	},
 
@@ -400,19 +442,21 @@ var LazyFS = {
 		const key = `size:${filepath}`;
 
 		return new Promise((resolve, reject) => {
-			this.pendingRequests.set(key, { resolve, reject });
+			const fileEntry = this.files.get(filepath);
+			this.pendingRequests.set(key, { resolve, reject, file: filepath, generation: fileEntry.generation,
+				connectionGeneration: this.connectionGeneration });
 			this.send({
 				type: 'get_size',
 				file: filepath
 			});
 
-			// Timeout after 10 seconds
+			// Initial component hashing can take longer than 10 seconds.
 			setTimeout(() => {
 				if (this.pendingRequests.has(key)) {
 					this.pendingRequests.delete(key);
 					reject(new Error('Timeout getting file size'));
 				}
-			}, 10000);
+			}, 60000);
 		});
 	},
 
@@ -423,9 +467,12 @@ var LazyFS = {
 		await this.connect();
 
 		const key = `batch:${filepath}:${startChunk}:${endChunk}`;
+		const fileEntry = this.files.get(filepath);
+		if (fileEntry.version === null) await this.getFileSize(filepath);
 
 		return new Promise((resolve, reject) => {
-			this.pendingRequests.set(key, { resolve, reject });
+			this.pendingRequests.set(key, { resolve, reject, file: filepath, generation: fileEntry.generation,
+				connectionGeneration: this.connectionGeneration, versionTag: this.getFileVersionTag(fileEntry) });
 			this.send({
 				type: 'get_chunks',
 				file: filepath,
@@ -448,7 +495,9 @@ var LazyFS = {
 	 * Get a chunk from cache or fetch it
 	 */
 	getChunk: async function (filepath, chunkIndex) {
+		await this.connect();
 		const fileEntry = this.files.get(filepath);
+		if (fileEntry.version === null) await this.getFileSize(filepath);
 		const versionTag = this.getFileVersionTag(fileEntry);
 		const cacheKey = this.getChunkCacheKey(filepath, versionTag, chunkIndex);
 
@@ -458,12 +507,11 @@ var LazyFS = {
 		}
 
 		// Fetch single chunk
-		await this.connect();
-
 		const key = `chunk:${filepath}:${chunkIndex}`;
 
 		return new Promise((resolve, reject) => {
-			this.pendingRequests.set(key, { resolve, reject });
+			this.pendingRequests.set(key, { resolve, reject, file: filepath, generation: fileEntry.generation,
+				connectionGeneration: this.connectionGeneration, versionTag });
 			this.send({
 				type: 'get_chunk',
 				file: filepath,
@@ -486,11 +534,14 @@ var LazyFS = {
 	 * This is called by Emscripten's FS when the file is read
 	 */
 	readFileData: async function (filepath, offset, length) {
+		await this.connect();
 		const fileEntry = this.files.get(filepath);
 		if (!fileEntry) {
 			console.error('[LazyFS] File not registered:', filepath);
 			return null;
 		}
+		if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0)
+			return null;
 
 		// Initialize DB if needed
 		if (!this.dbReady && !this.dbInitPromise) {
@@ -498,7 +549,6 @@ var LazyFS = {
 		} else if (this.dbInitPromise) {
 			await this.dbInitPromise;
 		}
-
 		// Fetch file size if not already known
 		if (fileEntry.size === null) {
 			try {
@@ -513,7 +563,10 @@ var LazyFS = {
 				return null;
 			}
 		}
+		if (offset > fileEntry.size || length > fileEntry.size - offset) return null;
+		if (length === 0) return new Uint8Array(0);
 
+		const generation = fileEntry.generation;
 		// Calculate which chunks we need
 		const startChunk = Math.floor(offset / this.CHUNK_SIZE);
 		const endChunk = Math.floor((offset + length - 1) / this.CHUNK_SIZE);
@@ -612,7 +665,7 @@ var LazyFS = {
 			resultOffset += readLength;
 		}
 
-		return result;
+		return resultOffset === length && generation === fileEntry.generation ? result : null;
 	}
 };
 

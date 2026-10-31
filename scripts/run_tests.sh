@@ -23,7 +23,7 @@ Examples:
   ./scripts/run_tests.sh -- -R packet
   ./scripts/run_tests.sh --assets -- -L assets
 
-TEST_ASSET_DIR may select an existing NX directory. Reports and diagnostics
+TEST_ASSET_DIR selects an explicit shared asset root. Reports and diagnostics
 are written below build/tests/. Extra arguments are passed directly to CTest.
 EOF
 }

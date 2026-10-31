@@ -44,6 +44,7 @@ namespace nl {
         file(file &&);
         //Transfers ownership of the file handle to another file
         file & operator=(file &&);
+        static bool exists(std::string const & name);
         //Opens the file with the given name
         void open(std::string name);
         //Closes the given file

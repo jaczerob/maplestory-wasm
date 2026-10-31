@@ -34,6 +34,15 @@ jobs:
           emcc -v
           cmake --version
 
+      - name: Test asset cache behavior
+        run: node tests/lazyfs_test.js
+
+      - name: Test asset server
+        run: |
+          python3 -m venv "$RUNNER_TEMP/asset-server-venv"
+          "$RUNNER_TEMP/asset-server-venv/bin/python" -m pip install -r web/requirements.txt
+          "$RUNNER_TEMP/asset-server-venv/bin/python" -m unittest discover -s web -p test_assets_server.py
+
       - name: Build WASM client
         run: ./scripts/build_wasm.sh
 

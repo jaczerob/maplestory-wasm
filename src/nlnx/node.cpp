@@ -569,7 +569,11 @@ namespace nl {
         return {data_ptr, d->audio.length, make_audio_id(m_file, audio_offset)};
 #else
         auto audio_offset = m_file->audio_table[m_data->audio.index];
-        auto data_ptr = reinterpret_cast<char const *>(m_file->base) + audio_offset;
+        if (audio_offset < m_file->metadata_size ||
+            audio_offset - m_file->metadata_size > m_file->media_size ||
+            m_data->audio.length > m_file->media_size - (audio_offset - m_file->metadata_size))
+            return {nullptr, 0, 0};
+        auto data_ptr = reinterpret_cast<char const *>(m_file->media_base) + (audio_offset - m_file->metadata_size);
         return {data_ptr, m_data->audio.length, reinterpret_cast<size_t>(data_ptr)};
 #endif
     }

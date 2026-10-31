@@ -92,10 +92,17 @@ client_test(ui_window_test unit)
 client_test(job_requirements_test unit)
 client_test(npc_menu_test unit)
 
+add_library(test_nx STATIC
+    "${REPO_DIR}/src/nlnx/nx.cpp" "${REPO_DIR}/src/nlnx/node.cpp"
+    "${REPO_DIR}/src/nlnx/file.cpp" "${REPO_DIR}/src/nlnx/audio.cpp"
+    "${REPO_DIR}/src/nlnx/bitmap.cpp" "${CLIENT}/includes/lz4.c")
+target_link_libraries(test_nx PUBLIC test_options)
+client_test(nx_split_test unit test_nx)
+
 if(TEST_ASSETS)
-    foreach(asset Character Etc Item Npc Quest String UI UI_83)
-        if(NOT EXISTS "${TEST_ASSET_DIR}/${asset}.nx")
-            message(FATAL_ERROR "Asset tests require ${TEST_ASSET_DIR}/${asset}.nx. Set TEST_ASSET_DIR to an existing asset directory, or configure with TEST_ASSETS=OFF.")
+    foreach(asset Character Etc Item Mob Npc Quest String UI UI_83)
+        if(NOT EXISTS "${TEST_ASSET_DIR}/shared/${asset}.meta")
+            message(FATAL_ERROR "Asset tests require ${TEST_ASSET_DIR}/shared/${asset}.meta. Set TEST_ASSET_DIR to an asset root, or configure with TEST_ASSETS=OFF.")
         endif()
     endforeach()
     find_package(Freetype REQUIRED)
@@ -109,12 +116,6 @@ if(TEST_ASSETS)
         target_include_directories(test_graphics_headers INTERFACE ${OPENGL_INCLUDE_DIR})
         target_compile_options(test_graphics_headers INTERFACE -include GL/gl.h)
     endif()
-
-    add_library(test_nx STATIC
-        "${REPO_DIR}/src/nlnx/nx.cpp" "${REPO_DIR}/src/nlnx/node.cpp"
-        "${REPO_DIR}/src/nlnx/file.cpp" "${REPO_DIR}/src/nlnx/audio.cpp"
-        "${REPO_DIR}/src/nlnx/bitmap.cpp" "${CLIENT}/includes/lz4.c")
-    target_link_libraries(test_nx PUBLIC test_options)
 
     add_library(test_asset_support STATIC support/assets.cpp support/render_capture.cpp)
     target_compile_definitions(test_asset_support PRIVATE TEST_ASSET_DIR="${TEST_ASSET_DIR}")
@@ -158,4 +159,5 @@ if(TEST_ASSETS)
     foreach(name equip_inventory face_accessory)
         client_test(${name}_test assets test_texture_capture test_asset_client test_asset_support)
     endforeach()
+    client_test(mob_animation_assets_test assets test_texture_capture test_asset_client test_asset_support)
 endif()

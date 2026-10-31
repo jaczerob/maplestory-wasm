@@ -46,25 +46,66 @@
 #endif
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>
+#include <filesystem>
+#include <limits>
+#include <cerrno>
 
 namespace nl {
+    namespace {
+#ifndef MS_PLATFORM_WASM
+        std::filesystem::path metadata_path(const std::string& name) {
+            std::filesystem::path path(name);
+            if (path.extension() != ".nx") return path;
+            auto stem = path.stem().string();
+            for (const auto& candidate : {path.parent_path() / "shared" / (stem + ".meta"),
+                                         path.parent_path() / "assets" / "shared" / (stem + ".meta")})
+                if (std::filesystem::is_regular_file(candidate)) return candidate;
+            return path.parent_path() / "shared" / (stem + ".meta");
+        }
+
+        std::filesystem::path media_path(const std::filesystem::path& metadata) {
+            return metadata.parent_path().parent_path() / "client" / (metadata.stem().string() + ".media");
+        }
+#endif
+    }
     file::file(std::string name) {
         open(name);
     }
     file::~file() {
         close();
     }
+    file::file(file &&other) : m_data(other.m_data) {
+        other.m_data = nullptr;
+    }
+    file & file::operator=(file &&other) {
+        if (this != &other) {
+            close();
+            m_data = other.m_data;
+            other.m_data = nullptr;
+        }
+        return *this;
+    }
+    bool file::exists(std::string const & name) {
+#ifdef MS_PLATFORM_WASM
+        return true;
+#else
+        return std::filesystem::is_regular_file(metadata_path(name));
+#endif
+    }
     void file::open(std::string name) {
         close();
         m_data = new data();
+        try {
 #ifdef _WIN32
+        const auto meta_path = metadata_path(name);
 #  ifdef _MSC_VER
         std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
-        auto str = convert.from_bytes(name);
+        auto str = convert.from_bytes(meta_path.string());
 #  else
         std::setlocale(LC_ALL, "en_US.utf8");
-        auto str = std::wstring(name.size(), 0);
-        auto len = std::mbstowcs(const_cast<wchar_t *>(str.c_str()), name.c_str(), str.size());
+        auto str = std::wstring(meta_path.string().size(), 0);
+        auto len = std::mbstowcs(const_cast<wchar_t *>(str.c_str()), meta_path.string().c_str(), str.size());
         str.resize(len);
 #  endif
 #  if WINAPI_FAMILY == WINAPI_FAMILY_APP
@@ -73,7 +114,11 @@ namespace nl {
         m_data->file_handle = ::CreateFileW(str.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, nullptr);
 #  endif
         if (m_data->file_handle == INVALID_HANDLE_VALUE)
-            throw std::runtime_error("Failed to open file " + name);
+            throw std::runtime_error("Failed to open metadata for " + name);
+        LARGE_INTEGER file_size;
+        if (!::GetFileSizeEx(m_data->file_handle, &file_size) || file_size.QuadPart < 0)
+            throw std::runtime_error("Failed to get metadata size for " + name);
+        m_data->metadata_size = static_cast<size_t>(file_size.QuadPart);
 #  if WINAPI_FAMILY == WINAPI_FAMILY_APP
         m_data->map = ::CreateFileMappingFromApp(m_data->file_handle, 0, PAGE_READONLY, 0, nullptr);
 #  else
@@ -88,6 +133,37 @@ namespace nl {
 #  endif
         if (!m_data->base)
             throw std::runtime_error("Failed to map view of file " + name);
+        const auto payload_path = media_path(meta_path);
+#  ifdef _MSC_VER
+        auto media_str = convert.from_bytes(payload_path.string());
+#  else
+        auto media_str = std::wstring(payload_path.string().size(), 0);
+        auto media_len = std::mbstowcs(const_cast<wchar_t *>(media_str.c_str()), payload_path.string().c_str(), media_str.size());
+        media_str.resize(media_len);
+#  endif
+#  if WINAPI_FAMILY == WINAPI_FAMILY_APP
+        m_data->media_handle = ::CreateFile2(media_str.c_str(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, nullptr);
+#  else
+        m_data->media_handle = ::CreateFileW(media_str.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, nullptr);
+#  endif
+        if (m_data->media_handle != INVALID_HANDLE_VALUE) {
+            if (!::GetFileSizeEx(m_data->media_handle, &file_size) || file_size.QuadPart < 0)
+                throw std::runtime_error("Failed to get media size for " + name);
+            m_data->media_size = static_cast<size_t>(file_size.QuadPart);
+#  if WINAPI_FAMILY == WINAPI_FAMILY_APP
+            m_data->media_map = ::CreateFileMappingFromApp(m_data->media_handle, 0, PAGE_READONLY, 0, nullptr);
+            if (m_data->media_map && m_data->media_size)
+                m_data->media_base = ::MapViewOfFileFromApp(m_data->media_map, FILE_MAP_READ, 0, 0, m_data->media_size);
+#  else
+            m_data->media_map = ::CreateFileMappingW(m_data->media_handle, 0, PAGE_READONLY, 0, 0, nullptr);
+            if (m_data->media_map && m_data->media_size)
+                m_data->media_base = ::MapViewOfFile(m_data->media_map, FILE_MAP_READ, 0, 0, 0);
+#  endif
+            if (m_data->media_size && !m_data->media_base)
+                throw std::runtime_error("Failed to map media for " + name);
+        } else if (::GetLastError() != ERROR_FILE_NOT_FOUND && ::GetLastError() != ERROR_PATH_NOT_FOUND) {
+            throw std::runtime_error("Failed to open media for " + name);
+        }
 #else
 #ifdef MS_PLATFORM_WASM
         // WASM: Use LazyFS instead of mmap
@@ -102,16 +178,31 @@ namespace nl {
         m_data->size = file_size;
         m_data->file_handle = -1; // No file handle for LazyFS
 #else
-        m_data->file_handle = ::open(name.c_str(), O_RDONLY);
+        const auto meta_path = metadata_path(name);
+        m_data->file_handle = ::open(meta_path.string().c_str(), O_RDONLY);
         if (m_data->file_handle == -1)
-            throw std::runtime_error("Failed to open file " + name);
+            throw std::runtime_error("Failed to open metadata for " + name);
         struct stat finfo;
         if (::fstat(m_data->file_handle, &finfo) == -1)
-            throw std::runtime_error("Failed to obtain file information of file " + name);
-        m_data->size = finfo.st_size;
-        m_data->base = ::mmap(nullptr, m_data->size, PROT_READ, MAP_SHARED, m_data->file_handle, 0);
+            throw std::runtime_error("Failed to obtain metadata information for " + name);
+        m_data->metadata_size = static_cast<size_t>(finfo.st_size);
+        m_data->base = ::mmap(nullptr, m_data->metadata_size, PROT_READ, MAP_SHARED, m_data->file_handle, 0);
         if (reinterpret_cast<intptr_t>(m_data->base) == -1)
-            throw std::runtime_error("Failed to create memory mapping of file " + name);
+            throw std::runtime_error("Failed to map metadata for " + name);
+        const auto payload_path = media_path(meta_path);
+        m_data->media_handle = ::open(payload_path.string().c_str(), O_RDONLY);
+        if (m_data->media_handle == -1 && errno != ENOENT)
+            throw std::runtime_error("Failed to open media for " + name);
+        if (m_data->media_handle != -1) {
+            if (::fstat(m_data->media_handle, &finfo) == -1)
+                throw std::runtime_error("Failed to obtain media information for " + name);
+            m_data->media_size = static_cast<size_t>(finfo.st_size);
+            if (m_data->media_size) {
+                m_data->media_base = ::mmap(nullptr, m_data->media_size, PROT_READ, MAP_SHARED, m_data->media_handle, 0);
+                if (m_data->media_base == MAP_FAILED)
+                    throw std::runtime_error("Failed to map media for " + name);
+            }
+        }
 #endif
 #endif
 
@@ -157,14 +248,44 @@ namespace nl {
                   << " raw_bitmap_offset@32=" << raw_bitmap_offset
                   << std::endl;
 #else
+        if (m_data->metadata_size < sizeof(header))
+            throw std::runtime_error("Truncated NX metadata header: " + name);
         m_data->header = reinterpret_cast<header const *>(m_data->base);
         if (m_data->header->magic != 0x34474B50)
             throw std::runtime_error(name + " is not a PKG4 NX file");
+        const auto table_fits = [this](uint64_t offset, uint64_t count, size_t element) {
+            return offset <= m_data->metadata_size && count <= (m_data->metadata_size - offset) / element;
+        };
+        if (!table_fits(m_data->header->node_offset, m_data->header->node_count, sizeof(node::data)) ||
+            !table_fits(m_data->header->string_offset, m_data->header->string_count, sizeof(uint64_t)) ||
+            !table_fits(m_data->header->bitmap_offset, m_data->header->bitmap_count, sizeof(uint64_t)) ||
+            !table_fits(m_data->header->audio_offset, m_data->header->audio_count, sizeof(uint64_t)))
+            throw std::runtime_error("NX metadata table outside metadata component: " + name);
+        if ((m_data->header->bitmap_count || m_data->header->audio_count) && !m_data->media_base)
+            throw std::runtime_error("NX payload table has no media component: " + name);
         m_data->node_table = reinterpret_cast<node::data const *>(reinterpret_cast<char const *>(m_data->base) + m_data->header->node_offset);
         m_data->string_table = reinterpret_cast<uint64_t const *>(reinterpret_cast<char const *>(m_data->base) + m_data->header->string_offset);
         m_data->bitmap_table = reinterpret_cast<uint64_t const *>(reinterpret_cast<char const *>(m_data->base) + m_data->header->bitmap_offset);
         m_data->audio_table = reinterpret_cast<uint64_t const *>(reinterpret_cast<char const *>(m_data->base) + m_data->header->audio_offset);
+        const uint64_t logical_size = m_data->metadata_size + m_data->media_size;
+        for (uint32_t i = 0; i < m_data->header->bitmap_count; ++i)
+            if (m_data->bitmap_table[i] < m_data->metadata_size || m_data->bitmap_table[i] >= logical_size)
+                throw std::runtime_error("NX bitmap offset outside media component: " + name);
+        for (uint32_t i = 0; i < m_data->header->audio_count; ++i)
+            if (m_data->audio_table[i] < m_data->metadata_size || m_data->audio_table[i] >= logical_size)
+                throw std::runtime_error("NX audio offset outside media component: " + name);
+        for (uint32_t i = 0; i < m_data->header->node_count; ++i) {
+            const auto& item = m_data->node_table[i];
+            if (item.type == node::type::audio &&
+                (item.audio.index >= m_data->header->audio_count ||
+                 item.audio.length > logical_size - m_data->audio_table[item.audio.index]))
+                throw std::runtime_error("NX audio payload outside media component: " + name);
+        }
 #endif
+        } catch (...) {
+            close();
+            throw;
+        }
     }
     void file::close() {
         if (!m_data) return;
@@ -172,6 +293,9 @@ namespace nl {
         ::UnmapViewOfFile(m_data->base);
         ::CloseHandle(m_data->map);
         ::CloseHandle(m_data->file_handle);
+        if (m_data->media_base) ::UnmapViewOfFile(m_data->media_base);
+        if (m_data->media_map) ::CloseHandle(m_data->media_map);
+        if (m_data->media_handle && m_data->media_handle != INVALID_HANDLE_VALUE) ::CloseHandle(m_data->media_handle);
 #else
 #ifdef MS_PLATFORM_WASM
         // WASM: Free LazyFS-loaded file
@@ -179,8 +303,14 @@ namespace nl {
             LazyFS::LazyFileLoader::free_file(const_cast<void *>(m_data->base));
         }
 #else
-        ::munmap(const_cast<void *>(m_data->base), m_data->size);
-        ::close(m_data->file_handle);
+        if (m_data->base && m_data->metadata_size)
+            ::munmap(const_cast<void *>(m_data->base), m_data->metadata_size);
+        if (m_data->media_base && m_data->media_size)
+            ::munmap(const_cast<void *>(m_data->media_base), m_data->media_size);
+        if (m_data->file_handle != -1)
+            ::close(m_data->file_handle);
+        if (m_data->media_handle != -1)
+            ::close(m_data->media_handle);
 #endif
 #endif
         delete m_data;
@@ -253,8 +383,12 @@ namespace nl {
         
         return {char_ptr, len};
 #else
-        auto const s = reinterpret_cast<char const *>(m_data->base) + m_data->string_table[i];
-        return {s + 2, *reinterpret_cast<uint16_t const *>(s)};
+        const auto offset = m_data->string_table[i];
+        if (offset > m_data->metadata_size || m_data->metadata_size - offset < sizeof(uint16_t)) return {};
+        auto const s = reinterpret_cast<char const *>(m_data->base) + offset;
+        const auto length = *reinterpret_cast<uint16_t const *>(s);
+        if (length > m_data->metadata_size - offset - sizeof(uint16_t)) return {};
+        return {s + sizeof(uint16_t), length};
 #endif
     }
 
@@ -272,9 +406,22 @@ namespace nl {
         memcpy(buf, data, size);
         return true;
 #else
-        // Use pread for native builds
-        ssize_t result = pread(fd->file_handle, buf, size, offset);
-        return result == static_cast<ssize_t>(size);
+        if (offset > fd->metadata_size + fd->media_size || size > fd->metadata_size + fd->media_size - offset)
+            return false;
+        auto *destination = static_cast<char *>(buf);
+        size_t remaining = size;
+        if (offset < fd->metadata_size) {
+            const size_t count = std::min(remaining, fd->metadata_size - static_cast<size_t>(offset));
+            if (pread(fd->file_handle, destination, count, static_cast<off_t>(offset)) != static_cast<ssize_t>(count))
+                return false;
+            destination += count;
+            remaining -= count;
+            offset += count;
+        }
+        if (remaining && (fd->media_handle == -1 ||
+            pread(fd->media_handle, destination, remaining, static_cast<off_t>(offset - fd->metadata_size)) != static_cast<ssize_t>(remaining)))
+            return false;
+        return true;
 #endif
     }
 }

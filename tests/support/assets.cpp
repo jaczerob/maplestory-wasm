@@ -13,7 +13,7 @@ namespace
         auto& file = files[name];
         if (!file)
         {
-            const auto path = std::filesystem::path(TEST_ASSET_DIR) / name;
+            const auto path = std::filesystem::path(TEST_ASSET_DIR) / "shared" / (std::filesystem::path(name).stem().string() + ".meta");
             if (!std::filesystem::is_regular_file(path))
                 throw std::runtime_error("Missing read-only NX asset: " + path.string());
             file = std::make_unique<nl::file>(path.string());

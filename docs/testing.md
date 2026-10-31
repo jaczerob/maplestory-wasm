@@ -50,20 +50,22 @@ the tests, run **clangd: Restart language server** from the Command Palette.
 ## Tests using NX assets
 
 ```bash
+export TEST_ASSET_DIR=/absolute/path/to/assets
 ./scripts/run_tests.sh --assets                 # Unit and asset suites
 ./scripts/run_tests.sh --assets -- -L assets    # Only asset cases
 ./scripts/run_tests.sh --assets -- -R npc       # NPC regressions
-TEST_ASSET_DIR=/path/to/existing/nx ./scripts/run_tests.sh --assets
 ```
 
 Asset tests also need FreeType headers/library and native OpenGL headers. On
 macOS, the Xcode command-line tools supply OpenGL and `brew install freetype`
 supplies FreeType. On Ubuntu, install `libfreetype-dev libgl-dev`.
 
-The asset suite requires `Character.nx`, `Etc.nx`, `Item.nx`, `Npc.nx`, `Quest.nx`,
-`String.nx`, `UI.nx`, and `UI_83.nx`. `UI.nx` is the client's newer UI set;
-`UI_83.nx` supplies the classic Cash Shop artwork. Configuration fails with the
-missing path when an explicitly enabled asset suite lacks a required file.
+The asset suite reads metadata from the full asset root. It requires
+`shared/Character.meta`, `Etc.meta`, `Item.meta`, `Npc.meta`, `Quest.meta`,
+`String.meta`, `UI.meta`, and `UI_83.meta`. `UI.meta` is the client's newer UI
+set; `UI_83.meta` supplies the classic Cash Shop artwork. Configuration fails
+with the missing path when an explicitly enabled asset suite lacks a required
+file.
 These are compatibility tests against the local asset set, so a different set
 can produce legitimate differences. The default suite never opens these files.
 
@@ -75,14 +77,14 @@ build directories, never under `assets/`.
 When the native toolchain or optional asset dependencies are unavailable:
 
 ```bash
-./scripts/docker_run_tests.sh
-./scripts/docker_run_tests.sh --assets
-./scripts/docker_run_tests.sh --sanitize
+../docker/frontend/scripts/docker_run_tests.sh
+../docker/frontend/scripts/docker_run_tests.sh --assets
+../docker/frontend/scripts/docker_run_tests.sh --sanitize
 ```
 
 The fallback accepts the same arguments and `TEST_ASSET_DIR`. Its image includes
 the verified doctest dependency. Image creation needs internet access; test
-execution uses `--network none`. Existing assets are mounted read-only. It starts
+execution uses `--network none`. The explicit asset root is mounted read-only. It starts
 no web services and uses no shared game-server network.
 
 ## Build directories and reports

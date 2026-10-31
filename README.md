@@ -48,16 +48,13 @@ MapleStory WASM brings the classic MapleStory v83 client to modern web browsers 
 > [!IMPORTANT]
 > You **must** provide your own game assets to run this project. We cannot distribute them due to copyright.
 
-### 1. Client Assets (`.nx` files)
+### 1. Shared asset root
 
-To put together the asset set:
-
-1. Take every `.wz` file from **v83** **except** `UI.wz`.
-2. Take **only** `UI.wz` from **v153+**.
-3. Run all of those `.wz` files through the [WZ to NX converter](./scripts/wz-converter/README.md) to produce `.nx` files.
-4. Drop the resulting `.nx` files into `maplestory-wasm/assets/`.
-
-Treat `assets/` as read-only once the files are in place — don't modify anything in it.
+The workspace asset compiler reads the read-only WZ inputs from
+`assets-updated/wz/` and writes a split root with `manifest.json`, `shared/`,
+`client/`, and `server/`. The frontend receives only `manifest.json`, `shared/`,
+and `client/`. Follow the [workspace conversion guide](../docker/frontend/wz-converter/README.md);
+do not generate assets inside this repository.
 
 ---
 
@@ -68,14 +65,14 @@ Treat `assets/` as read-only once the files are in place — don't modify anythi
 #### Prefer the docker build first:
 
 ```bash
-./scripts/docker_build_wasm.sh
+../docker/frontend/scripts/docker_build_wasm.sh
 ```
 
 Useful variants:
 
 ```
-./scripts/docker_build_wasm.sh --debug
-./scripts/docker_build_wasm.sh --jobs 4
+../docker/frontend/scripts/docker_build_wasm.sh --debug
+../docker/frontend/scripts/docker_build_wasm.sh --jobs 4
 ```
 
 #### If the local Emscripten and CMake toolchain is available, you can use the local build:
@@ -119,7 +116,7 @@ pip install -r web/requirements.txt
 ```bash
 python3 web/server.py
 python3 web/ws_proxy.py --ws-port 8080
-python3 web/assets_server.py --port 8765 --directory .
+python3 web/assets_server.py --port 8765 --directory /absolute/path/to/assets
 ```
 
 4. Open **http://localhost:8000**.
@@ -137,19 +134,19 @@ Use Docker when local deployment is not practical or when you want the container
 Web stack:
 
 ```bash
-./scripts/run_all.sh
+../docker/frontend/scripts/run_all.sh
 ```
 
 Equivalent direct command:
 
 ```bash
-./scripts/docker_web_up.sh -d
+../docker/frontend/scripts/docker_web_up.sh -d
 ```
 
 Stop all Docker services:
 
 ```bash
-./scripts/stop_all.sh
+../docker/frontend/scripts/stop_all.sh
 ```
 
 Open **http://localhost:8000** after the containers are up.
@@ -159,8 +156,8 @@ Open **http://localhost:8000** after the containers are up.
 ## Client Tests
 
 Run the self-contained native suite with `./scripts/run_tests.sh`. Use
-`./scripts/run_tests.sh --assets` to include tests against your read-only NX data,
-or `./scripts/docker_run_tests.sh` when the native toolchain is unavailable.
+`TEST_ASSET_DIR=/absolute/path/to/assets ./scripts/run_tests.sh --assets` to include asset tests,
+or `../docker/frontend/scripts/docker_run_tests.sh` when the native toolchain is unavailable.
 See [the testing guide](docs/testing.md) for filtering, sanitizers, reports, and
 adding cases. These tests require no Cosmic server.
 
@@ -169,7 +166,6 @@ adding cases. These tests require no Cosmic server.
 ```
 maplestory-wasm/
 ├── 📁 build/              # WASM build output
-├── 📁 docker/             # Dockerfiles for services
 ├── 📁 scripts/            # Build & run scripts
 ├── 📁 src/
 │   ├── client/            # C++ MapleStory Client
@@ -178,7 +174,6 @@ maplestory-wasm/
 │   ├── server.py          # HTTP server
 │   ├── ws_proxy.py        # WebSocket-TCP proxy
 │   └── assets_server.py   # NX asset streaming
-├── 📄 docker-compose.yml  # Docker orchestration
 ├── 📄 LICENSE             # AGPL-3.0 License
 └── 📄 README.md           # You are here
 ```
@@ -200,7 +195,7 @@ The `web/config.json` file controls how the browser connects to backend services
 
 ### Docker Environment
 
-The `docker-compose.yml` provides sensible defaults. Key environment variables:
+The workspace `../docker/frontend/compose.yml` provides sensible defaults. Key environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -212,10 +207,10 @@ The `docker-compose.yml` provides sensible defaults. Key environment variables:
 
 ### Making Changes
 
-1. Edit files under `src/client/`, `src/nlnx/`, `web/`, `scripts/`, or `docker/`
-2. Keep `assets/` unchanged
+1. Edit files under `src/client/`, `src/nlnx/`, `web/`, `scripts/`, or the workspace `../docker/`
+2. Leave `assets-updated/wz/` read-only and build asset candidates through the workspace Docker converter
 3. Rebuild the client with `./scripts/build_wasm.sh`
-4. If the local build is unavailable, use `./scripts/docker_build_wasm.sh`
+4. If the local build is unavailable, use `../docker/frontend/scripts/docker_build_wasm.sh`
 5. Re-test the relevant local or Docker workflow you changed
 
 ### Build Commands
@@ -225,11 +220,11 @@ The `docker-compose.yml` provides sensible defaults. Key environment variables:
 | `./scripts/build_wasm.sh` | Build WASM client (Release) |
 | `./scripts/build_wasm.sh --debug` | Build WASM client with debug symbols |
 | `./scripts/build_wasm.sh -j 4` | Build with 4 parallel jobs |
-| `./scripts/docker_build_wasm.sh` | Build WASM client in Docker |
-| `./scripts/wz-converter/convert.sh` | Convert local `.wz` files to `.nx` files in Docker |
-| `./scripts/run_all.sh` | Start the Docker web services |
-| `./scripts/docker_web_up.sh -d` | Start the Docker web services directly |
-| `./scripts/stop_all.sh` | Stop all services |
+| `../docker/frontend/scripts/docker_build_wasm.sh` | Build WASM client in Docker |
+| `../docker/frontend/wz-converter/convert.sh` | Convert local `.wz` files to `.nx` files in Docker |
+| `../docker/frontend/scripts/run_all.sh` | Start the Docker web services |
+| `../docker/frontend/scripts/docker_web_up.sh -d` | Start the Docker web services directly |
+| `../docker/frontend/scripts/stop_all.sh` | Stop all services |
 
 ---
 

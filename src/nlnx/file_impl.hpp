@@ -36,6 +36,9 @@ namespace nl {
 #pragma pack(pop)
     struct _file_data {
         void const * base = nullptr;
+        void const * media_base = nullptr;
+        size_t metadata_size = 0;
+        size_t media_size = 0;
 #ifdef MS_PLATFORM_WASM
         // On WASM, we use offsets into the file instead of pointers
         // because we can't map the whole file into contiguous memory.
@@ -45,6 +48,7 @@ namespace nl {
         uint64_t bitmap_table = 0;
         uint64_t audio_table = 0;
         uint64_t header = 0; // Usually 0
+        size_t size = 0;
 #else
         node::data const * node_table = nullptr;
         uint64_t const * string_table = nullptr;
@@ -55,9 +59,11 @@ namespace nl {
 #ifdef _WIN32
         void * file_handle = nullptr;
         void * map = nullptr;
+        void * media_handle = nullptr;
+        void * media_map = nullptr;
 #else
-        int file_handle = 0;
-        size_t size = 0;
+        int file_handle = -1;
+        int media_handle = -1;
 #endif
     };
 
