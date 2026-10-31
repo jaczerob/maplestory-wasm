@@ -23,7 +23,7 @@
 
 namespace jrc
 {
-    Icon::Icon(std::unique_ptr<Type> t, Texture tx, int16_t c)
+    Icon::Icon(std::unique_ptr<Type> t, Texture tx, int32_t c)
         : type(std::move(t)), texture(tx), count(c) {
 
         texture.shift({ 0, 32 });
@@ -42,7 +42,7 @@ namespace jrc
         if (showcount)
         {
             static const Charset countset = { nl::nx::ui["Basic.img"]["ItemNo"], Charset::LEFT };
-            int16_t tempc = dragged ? (count - 1) : count;
+            int32_t tempc = dragged ? (count - 1) : count;
             std::string countstr = std::to_string(tempc);
             countset.draw(countstr, position + Point<int16_t>(0, 20));
         }
@@ -87,12 +87,12 @@ namespace jrc
         dragged = false;
     }
 
-    void Icon::set_count(int16_t c)
+    void Icon::set_count(int32_t c)
     {
         count = c;
     }
 
-    int16_t Icon::get_count() const
+    int32_t Icon::get_count() const
     {
         return count;
     }

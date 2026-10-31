@@ -19,6 +19,8 @@
 
 #include "Reactor.h"
 
+#include "../../Net/Packets/AttackAndSkillPackets.h"
+
 namespace jrc
 {
     void MapReactors::draw(Layer::Id layer, double viewx, double viewy, float alpha) const
@@ -33,14 +35,8 @@ namespace jrc
             const ReactorSpawn& spawn = spawns.front();
 
             int32_t oid = spawn.get_oid();
-            if (auto reactor = reactors.get(oid))
-            {
-                reactor->makeactive();
-            }
-            else
-            {
-                reactors.add(spawn.instantiate(physics));
-            }
+            reactors.remove(oid);
+            reactors.add(spawn.instantiate(physics));
         }
 
         reactors.update(physics);
@@ -58,6 +54,29 @@ namespace jrc
         if (Optional<Reactor> reactor = reactors.get(oid))
         {
             reactor->destroy(state, position);
+        }
+    }
+
+    void MapReactors::hit(int32_t oid, int8_t state, Point<int16_t> position)
+    {
+        if (Optional<Reactor> reactor = reactors.get(oid))
+        {
+            reactor->hit(state, position);
+        }
+    }
+
+    void MapReactors::send_attack(const Attack& attack)
+    {
+        if (attack.type != Attack::CLOSE)
+            return;
+
+        for (const auto& object : reactors)
+        {
+            const Reactor* reactor = static_cast<const Reactor*>(object.second.get());
+            if (reactor && reactor->is_attackable() && attack.hits_reactor(reactor->get_bounds()))
+            {
+                DamageReactorPacket(object.first, attack.origin.x(), attack.stance, attack.skill).dispatch();
+            }
         }
     }
 

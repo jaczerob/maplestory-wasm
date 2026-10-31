@@ -54,13 +54,16 @@ namespace jrc
     {
     public:
         MoveItemPacket(InventoryType::Id type, int16_t slot,
-            int16_t action, int16_t qty) : OutPacket(MOVE_ITEM) {
+            int16_t action, int32_t qty) : OutPacket(MOVE_ITEM) {
 
             write_time();
             write_byte(type);
             write_short(slot);
             write_short(action);
-            write_short(qty);
+            if (type == InventoryType::ETC)
+                write_int(qty);
+            else
+                write_short(static_cast<int16_t>(qty));
         }
     };
 

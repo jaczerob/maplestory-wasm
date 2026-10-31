@@ -415,7 +415,7 @@ namespace jrc
                 KeyConfig::O, KeyConfig::P, KeyConfig::LEFT_BRACKET,
                 KeyConfig::RIGHT_BRACKET, KeyConfig::BACKSLASH
             },
-            96,
+            62,
             99
         );
         add_row({ KeyConfig::DELETE, KeyConfig::END, KeyConfig::PAGE_DOWN }, 512, 99);

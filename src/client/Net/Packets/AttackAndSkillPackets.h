@@ -22,6 +22,21 @@
 
 namespace jrc
 {
+    // Requests a reactor hit. Opcode: DAMAGE_REACTOR(0xCD)
+    class DamageReactorPacket : public OutPacket
+    {
+    public:
+        DamageReactorPacket(int32_t oid, int16_t charx, int16_t stance, int32_t skillid)
+            : OutPacket(DAMAGE_REACTOR)
+        {
+            write_int(oid);
+            write_int(charx);
+            write_short(stance);
+            skip(4);
+            write_int(skillid);
+        }
+    };
+
     // Notifies the server of an attack. The opcode is determined by the attack type.
     // Attack::CLOSE = CLOSE_ATTACK(44)
     // Attack::RANGED = RANGED_ATTACK(45)

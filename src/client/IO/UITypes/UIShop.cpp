@@ -532,7 +532,7 @@ namespace jrc
     }
 
     UIShop::SellItem::SellItem(int32_t item_id,
-                               int16_t count,
+                               int32_t count,
                                int16_t s,
                                bool sc,
                                Texture cur)
@@ -582,7 +582,7 @@ namespace jrc
         return slot;
     }
 
-    int16_t UIShop::SellItem::get_sellable() const
+    int32_t UIShop::SellItem::get_sellable() const
     {
         return sellable;
     }
@@ -654,9 +654,7 @@ namespace jrc
         {
             constexpr auto question = "How many would you like to buy?";
             auto onenter = [slot, itemid](int32_t qty){
-                auto shortqty = static_cast<int16_t>(qty);
-
-                NpcShopActionPacket(slot, itemid, shortqty, true).dispatch();
+                NpcShopActionPacket(slot, itemid, qty, true).dispatch();
             };
             UI::get().emplace<UIEnterNumber>(question, onenter, 1, buyable, 1);
         }
@@ -711,7 +709,7 @@ namespace jrc
         {
             if (int32_t item_id = inventory.get_item_id(tab, i))
             {
-                int16_t count = inventory.get_item_count(tab, i);
+                int32_t count = inventory.get_item_count(tab, i);
                 items.emplace_back(item_id, count, i, tab != InventoryType::EQUIP, meso);
             }
         }
@@ -791,15 +789,13 @@ namespace jrc
 
         const SellItem& item = items[selection];
         int32_t itemid = item.get_id();
-        int16_t sellable = item.get_sellable();
+        int32_t sellable = item.get_sellable();
         int16_t slot = item.get_slot();
         if (sellable > 1)
         {
             constexpr auto question = "How many would you like to sell?";
             auto onenter = [itemid, slot](int32_t qty){
-                auto shortqty = static_cast<int16_t>(qty);
-
-                NpcShopActionPacket(slot, itemid, shortqty, false).dispatch();
+                NpcShopActionPacket(slot, itemid, qty, false).dispatch();
             };
             UI::get().emplace<UIEnterNumber>(question, onenter, 1, sellable, 1);
         }

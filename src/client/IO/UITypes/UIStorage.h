@@ -35,7 +35,7 @@ namespace jrc
         struct ItemEntry
         {
             int32_t itemid = 0;
-            int16_t count = 0;
+            int32_t count = 0;
         };
 
         static constexpr Type TYPE = STORAGE;
@@ -68,7 +68,7 @@ namespace jrc
         struct InventoryEntry
         {
             int32_t itemid = 0;
-            int16_t count = 0;
+            int32_t count = 0;
             int16_t slot = 0;
         };
 

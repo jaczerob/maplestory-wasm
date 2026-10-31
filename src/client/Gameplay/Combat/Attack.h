@@ -64,6 +64,21 @@ namespace jrc
         Rectangle<int16_t> range;
         float hrange = 1.0f;
         bool toleft  = false;
+
+        Rectangle<int16_t> get_range() const
+        {
+            int16_t horizontal = static_cast<int16_t>(range.l() * hrange);
+            return toleft
+                ? Rectangle<int16_t>(origin.x() + horizontal, origin.x() + range.r(),
+                    origin.y() + range.t(), origin.y() + range.b())
+                : Rectangle<int16_t>(origin.x() - range.r(), origin.x() - horizontal,
+                    origin.y() + range.t(), origin.y() + range.b());
+        }
+
+        bool hits_reactor(const Rectangle<int16_t>& bounds) const
+        {
+            return type == CLOSE && get_range().overlaps(bounds);
+        }
     };
 
 

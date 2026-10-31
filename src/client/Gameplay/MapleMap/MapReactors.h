@@ -18,6 +18,7 @@
 #pragma once
 #include "MapObjects.h"
 
+#include "../Combat/Attack.h"
 #include "../Spawn.h"
 
 #include <queue>
@@ -37,6 +38,10 @@ namespace jrc
         void spawn(ReactorSpawn&& spawn);
         // Remove a reactor.
         void remove(int32_t oid, int8_t state, Point<int16_t> position);
+        // Update a reactor after a server-confirmed hit.
+        void hit(int32_t oid, int8_t state, Point<int16_t> position);
+        // Send hits to reactors inside a close attack's range.
+        void send_attack(const Attack& attack);
         // Remove all reactors.
         void clear();
 

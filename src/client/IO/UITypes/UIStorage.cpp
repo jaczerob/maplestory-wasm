@@ -510,7 +510,7 @@ namespace jrc
                 continue;
             }
 
-            int16_t count = tab == InventoryType::EQUIP ?
+            int32_t count = tab == InventoryType::EQUIP ?
                 1 :
                 inventory.get_item_count(tab, slot);
 
@@ -574,7 +574,7 @@ namespace jrc
         }
 
         const InventoryEntry entry = inventory_items[inventory_selection];
-        int16_t max_quantity = std::max<int16_t>(1, entry.count);
+        int32_t max_quantity = std::max<int32_t>(1, entry.count);
 
         if (tab != InventoryType::EQUIP && max_quantity > 1)
         {
@@ -582,7 +582,7 @@ namespace jrc
                 StorageActionPacket(
                     entry.slot,
                     entry.itemid,
-                    static_cast<int16_t>(quantity)
+                    quantity
                 ).dispatch();
             };
             UI::get().emplace<UIEnterNumber>(

@@ -4,6 +4,12 @@
 **Audience:** Development team implementing a compatible client or server component
 **Scope:** Complete wire-level specification for all client↔server communication
 
+**Kitty extension:** ETC stack quantities are signed 32-bit integers in item records,
+inventory quantity updates, item move/drop requests, shop sales, and storage deposits.
+The inventory type (`4`) or item ID category selects this width. Other inventory
+types and shop purchase quantities keep their 16-bit fields. Deploy the matching
+Kitty channel and frontend together; original v83 clients do not support this extension.
+
 ---
 
 ## Table of Contents
@@ -1136,12 +1142,12 @@ Field       Type    Notes
 operation   byte    0 = buy, 1 = sell, 2 = recharge, 3 = exit
 [If buy:]
   slot      short   Shop slot index (0-based)
-  unknown   short   Usually 0
+  itemId    int     Item ID
   quantity  short   Amount to buy
 [If sell:]
   slot      short   Inventory slot
   itemId    int     Item ID
-  quantity  short   Amount to sell
+  quantity  short/int   Amount to sell; int for ETC items
 [If recharge:]
   slot      short   Inventory slot of the rechargeable item
 ```
@@ -1156,11 +1162,11 @@ Server responds with `CONFIRM_SHOP_TRANSACTION` (0x132) and `INVENTORY_OPERATION
 
 ```
 Field       Type    Notes
-operation   byte    4 = take item, 5 = store item, 6 = meso, 7 = sort, 8 = exit
+operation   byte    4 = take item, 5 = store item, 6 = sort, 7 = meso, 8 = exit
 [If store:]
-  slot      byte    Inventory slot
-  type      byte    Inventory type
-  quantity  short   Amount
+  slot      short   Inventory slot
+  itemId    int     Item ID
+  quantity  short/int   Amount; int for ETC items
 [If take:]
   type      byte    Inventory type
   slot      byte    Storage slot
@@ -1249,7 +1255,7 @@ Field      Type    Notes
 invType    byte    Inventory type (1=Equip, 2=Use, 3=Setup, 4=Etc, 5=Cash)
 src        short   Source slot (negative = equipped slot)
 action     short   Destination slot (0 = drop, negative = equip slot, positive = inventory slot)
-quantity   short   Quantity to move/drop
+quantity   short/int   Quantity to move/drop; int when invType is 4
 ```
 
 **Logic:**
@@ -2177,8 +2183,10 @@ oid      int     Object ID of the item on the map
 ```
 Field       Type    Notes
 reactorOid  int     Reactor object ID
-damage      int     Damage dealt
-direction   int     Direction of attack
+charPos     int     Player X coordinate
+stance      short   Attack stance
+[reserved]  int     0
+skillId     int     0 for a regular attack
 ```
 
 ---
@@ -2420,7 +2428,7 @@ count       byte    Number of inventory modifications
   invType   byte    Inventory type (1–5)
   slot      short   Target slot (or old slot for mode 2)
   [mode 0:] —       Full item info (§11.2)
-  [mode 1:] short   New quantity
+  [mode 1:] short/int   New quantity; int when invType is 4
   [mode 2:] short   New slot position
 [addMovement] byte  (Optional) 1=equip animation, 2=unequip animation
 ```
@@ -3513,9 +3521,12 @@ pos        pos    Door position
 ```
 Field       Type   Notes
 reactorOid  int
-charId      int    Who hit it
-damage      int
+state       byte   New server-authoritative state
+posX        short
+posY        short
 stance      byte
+[reserved]  short  0
+[reserved]  byte   5
 ```
 
 ---
@@ -3868,7 +3879,7 @@ expiration   long         Expiration timestamp (FILETIME)
   [int]        int         -1
 
 [If consumable/etc/setup:]
-  quantity   short
+  quantity   short/int   int for ETC item IDs; short otherwise
   owner      string
   flag       short
   [If rechargeable:]

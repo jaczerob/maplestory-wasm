@@ -148,6 +148,14 @@ namespace jrc
     };
 
 
+    // Update reactor state after a hit.
+    // Opcode: REACTOR_HIT(0x115)
+    class TriggerReactorHandler : public PacketHandler
+    {
+        void handle(InPacket& recv) const override;
+    };
+
+
     // Remove a reactor from the stage.
     // Opcode: REMOVE_REACTOR(280)
     class RemoveReactorHandler : public PacketHandler

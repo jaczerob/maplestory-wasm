@@ -42,11 +42,12 @@ namespace jrc
     }
 
     Combat::Combat(Player& in_player,
-        MapChars& in_chars, MapMobs& in_mobs,
+        MapChars& in_chars, MapMobs& in_mobs, MapReactors& in_reactors,
         Physics& in_physics) :
         player(in_player),
         chars(in_chars),
         mobs(in_mobs),
+        reactors(in_reactors),
         physics(in_physics),
         attackresults([&](const AttackResult& attack) {
             apply_attack(attack);
@@ -143,6 +144,7 @@ namespace jrc
             move.apply_stats(player, attack);
 
             AttackResult result = mobs.send_attack(attack);
+            reactors.send_attack(attack);
             result.attacker = player.get_oid();
             extract_effects(player, move, result);
 

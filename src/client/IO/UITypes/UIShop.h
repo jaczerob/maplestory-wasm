@@ -120,13 +120,13 @@ namespace jrc
         class SellItem
         {
         public:
-            SellItem(int32_t item_id, int16_t count, int16_t slot, bool showcount, Texture cur);
+            SellItem(int32_t item_id, int32_t count, int16_t slot, bool showcount, Texture cur);
 
             void draw(Point<int16_t> position) const;
 
             int32_t get_id() const;
             int16_t get_slot() const;
-            int16_t get_sellable() const;
+            int32_t get_sellable() const;
             bool is_rechargable() const;
 
         private:
@@ -134,7 +134,7 @@ namespace jrc
             Texture currency;
             int32_t id;
             int16_t slot;
-            int16_t sellable;
+            int32_t sellable;
             bool rechargable;
             bool showcount;
             Text namelabel;

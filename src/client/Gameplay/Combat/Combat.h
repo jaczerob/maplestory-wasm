@@ -22,6 +22,7 @@
 
 #include "../MapleMap/MapChars.h"
 #include "../MapleMap/MapMobs.h"
+#include "../MapleMap/MapReactors.h"
 #include "../Physics/Physics.h"
 
 #include "../../Character/Player.h"
@@ -32,7 +33,7 @@ namespace jrc
     class Combat
     {
     public:
-        Combat(Player& player, MapChars& chars, MapMobs& mobs,
+        Combat(Player& player, MapChars& chars, MapMobs& mobs, MapReactors& reactors,
             Physics& physics);
 
         // Draw bullets, damage numbers etc.
@@ -90,6 +91,7 @@ namespace jrc
         Player& player;
         MapChars& chars;
         MapMobs& mobs;
+        MapReactors& reactors;
         Physics& physics;
 
         std::unordered_map<int32_t, Skill> skills;

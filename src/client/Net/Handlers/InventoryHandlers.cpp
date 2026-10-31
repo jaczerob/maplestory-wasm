@@ -64,7 +64,7 @@ namespace jrc
             int8_t mode;
             InventoryType::Id type;
             int16_t pos;
-            int16_t arg;
+            int32_t arg;
         };
         std::vector<Mod> mods;
 
@@ -84,10 +84,10 @@ namespace jrc
                 break;
             case Inventory::CHANGECOUNT:
                 {
-                    mod.arg = recv.read_short();
+                    mod.arg = mod.type == InventoryType::ETC ? recv.read_int() : recv.read_short();
 
-                    int16_t count_before = inventory.get_item_count(mod.type, mod.pos);
-                    int16_t count_now = mod.arg;
+                    int32_t count_before = inventory.get_item_count(mod.type, mod.pos);
+                    int32_t count_now = mod.arg;
 
                     inventory.modify(mod.type, mod.pos, mod.mode, mod.arg, Inventory::MOVE_NONE);
 

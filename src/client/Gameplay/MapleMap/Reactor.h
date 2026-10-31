@@ -30,15 +30,23 @@ namespace jrc
         Reactor(int32_t oid, int32_t rid,
             int8_t state, Point<int16_t> position);
 
+        int8_t update(const Physics& physics) override;
         void draw(double viewx, double viewy, float alpha) const override;
 
+        bool is_attackable() const;
+        Rectangle<int16_t> get_bounds() const;
+        void hit(int8_t newstate, Point<int16_t> position);
         void destroy(int8_t state, Point<int16_t> position);
 
     private:
         int32_t oid;
         int32_t rid;
         int8_t state;
+        nl::node source;
 
         Animation normal;
+        Animation hitanimation;
+        bool playing_hit = false;
+        bool destroying = false;
     };
 }

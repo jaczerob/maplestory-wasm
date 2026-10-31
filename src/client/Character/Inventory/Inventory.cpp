@@ -22,6 +22,8 @@
 #include "../../Data/EquipData.h"
 #include "../../Data/ItemData.h"
 
+#include <limits>
+
 namespace jrc
 {
     Inventory::Inventory()
@@ -99,7 +101,7 @@ namespace jrc
     }
 
     void Inventory::add_item(InventoryType::Id invtype, int16_t slot, int32_t item_id, bool cash,
-        int64_t expire, uint16_t count, const std::string& owner, int16_t flags) {
+        int64_t expire, int32_t count, const std::string& owner, int16_t flags) {
 
         items.emplace(
             std::piecewise_construct,
@@ -166,21 +168,21 @@ namespace jrc
             remove(secondtype, secondslot);
     }
 
-    int32_t Inventory::add_slot(InventoryType::Id type, int16_t slot, int32_t item_id, int16_t count, bool cash)
+    int32_t Inventory::add_slot(InventoryType::Id type, int16_t slot, int32_t item_id, int32_t count, bool cash)
     {
         running_uid++;
         inventories[type][slot] = { running_uid, item_id, count, cash };
         return running_uid;
     }
 
-    void Inventory::change_count(InventoryType::Id type, int16_t slot, int16_t count)
+    void Inventory::change_count(InventoryType::Id type, int16_t slot, int32_t count)
     {
         auto iter = inventories[type].find(slot);
         if (iter != inventories[type].end())
             iter->second.count = count;
     }
 
-    void Inventory::modify(InventoryType::Id type, int16_t slot, int8_t mode, int16_t arg, Movement move)
+    void Inventory::modify(InventoryType::Id type, int16_t slot, int8_t mode, int32_t arg, Movement move)
     {
         if (slot < 0)
         {
@@ -314,16 +316,20 @@ namespace jrc
         if (type == InventoryType::NONE)
             return 0;
 
-        int32_t total = 0;
+        int64_t total = 0;
         for (auto& iter : inventories[type])
         {
             if (iter.second.item_id == itemid)
+            {
                 total += iter.second.count;
+                if (total >= std::numeric_limits<int32_t>::max())
+                    return std::numeric_limits<int32_t>::max();
+            }
         }
-        return total;
+        return static_cast<int32_t>(total);
     }
 
-    int16_t Inventory::get_item_count(InventoryType::Id type, int16_t slot) const
+    int32_t Inventory::get_item_count(InventoryType::Id type, int16_t slot) const
     {
         auto iter = inventories[type].find(slot);
         if (iter != inventories[type].end())

@@ -36,7 +36,7 @@ namespace jrc
     }
 
     Stage::Stage()
-        : combat(player, chars, mobs, physics)
+        : combat(player, chars, mobs, reactors, physics)
         , last_pickup_time(0)
         , pending_intro_warp_mapid(-1)
         , pending_intro_warp_delay_ms(0)

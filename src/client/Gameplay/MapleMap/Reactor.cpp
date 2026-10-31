@@ -27,20 +27,93 @@ namespace jrc
         : MapObject(o, p), rid(r), state(s) {
 
         std::string strid = string_format::extend_id(rid, 7);
-        nl::node src = nl::nx::reactor[strid + ".img"];
+        source = nl::nx::reactor[strid + ".img"];
 
-        normal = src["0"];
+        nl::node initial = source[std::to_string(state)];
+        normal = initial;
+        destroying = initial["event"].size() == 0;
+    }
+
+    int8_t Reactor::update(const Physics& physics)
+    {
+        if (!active)
+            return phobj.fhlayer;
+
+        if (playing_hit)
+        {
+            if (hitanimation.update())
+            {
+                playing_hit = false;
+                normal = source[std::to_string(state)];
+                normal.reset();
+            }
+        }
+        else if (destroying)
+        {
+            if (normal.update())
+                deactivate();
+        }
+        else
+        {
+            normal.update();
+        }
+        return MapObject::update(physics);
     }
 
     void Reactor::draw(double viewx, double viewy, float alpha) const
     {
         Point<int16_t> absp = phobj.get_absolute(viewx, viewy, alpha);
-        Point<int16_t> shift = { 0, normal.get_dimensions().y() / 2 };
-        normal.draw(absp - shift, alpha);
+        const Animation& animation = playing_hit ? hitanimation : normal;
+        Point<int16_t> shift = { 0, animation.get_dimensions().y() / 2 };
+        animation.draw(absp - shift, alpha);
     }
 
-    void Reactor::destroy(int8_t, Point<int16_t>)
+    bool Reactor::is_attackable() const
     {
-        deactivate();
+        return active && !destroying;
+    }
+
+    Rectangle<int16_t> Reactor::get_bounds() const
+    {
+        Point<int16_t> origin = normal.get_origin();
+        Point<int16_t> dimensions = normal.get_dimensions();
+        Point<int16_t> position = get_position();
+        int16_t top = position.y() - dimensions.y() / 2 - origin.y();
+        return {
+            position.x() - origin.x(), position.x() - origin.x() + dimensions.x(),
+            top, top + dimensions.y()
+        };
+    }
+
+    void Reactor::hit(int8_t newstate, Point<int16_t> position)
+    {
+        nl::node hit = source[std::to_string(state)]["hit"];
+        nl::node next = source[std::to_string(newstate)];
+        set_position(position);
+        state = newstate;
+        destroying = next["event"].size() == 0;
+        if (hit.size() > 0)
+        {
+            hitanimation = hit;
+            hitanimation.reset();
+            playing_hit = true;
+        }
+        else
+        {
+            normal = next;
+            normal.reset();
+        }
+    }
+
+    void Reactor::destroy(int8_t newstate, Point<int16_t> position)
+    {
+        state = newstate;
+        set_position(position);
+        destroying = true;
+        if (!playing_hit)
+        {
+            normal = source[std::to_string(state)];
+            normal.reset();
+        }
     }
 }

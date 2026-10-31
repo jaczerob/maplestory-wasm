@@ -67,10 +67,10 @@ namespace jrc
         void set_slotmax(InventoryType::Id type, uint8_t value);
 
         // Modify the inventory with info from a packet.
-        void modify(InventoryType::Id type, int16_t pos, int8_t mode, int16_t arg, Movement movement);
+        void modify(InventoryType::Id type, int16_t pos, int8_t mode, int32_t arg, Movement movement);
         // Add a general item.
         void add_item(InventoryType::Id type, int16_t slot, int32_t itemid, bool cash, int64_t expire,
-            uint16_t count, const std::string& owner, int16_t flag);
+            int32_t count, const std::string& owner, int16_t flag);
         // Add a pet item.
         void add_pet(InventoryType::Id type, int16_t slot, int32_t itemid, bool cash, int64_t expire,
             const std::string& name, int8_t level, int16_t closeness, int8_t fullness);
@@ -104,7 +104,7 @@ namespace jrc
         // Return the total count of an item across all slots of its inventory.
         int32_t count_items(int32_t itemid) const;
         // Return the count of an item. Returns 0 if the slot is empty.
-        int16_t get_item_count(InventoryType::Id type, int16_t slot) const;
+        int32_t get_item_count(InventoryType::Id type, int16_t slot) const;
         // Return the id of an item. Returns 0 if the slot is empty.
         int32_t get_item_id(InventoryType::Id type, int16_t slot) const;
 
@@ -120,9 +120,9 @@ namespace jrc
 
     private:
         // Add an inventory slot and return the unique_id.
-        int32_t add_slot(InventoryType::Id type, int16_t slot, int32_t item_id, int16_t count, bool cash);
+        int32_t add_slot(InventoryType::Id type, int16_t slot, int32_t item_id, int32_t count, bool cash);
         // Change the quantity of an item.
-        void change_count(InventoryType::Id type, int16_t slot, int16_t count);
+        void change_count(InventoryType::Id type, int16_t slot, int32_t count);
         // Swap two items.
         void swap(InventoryType::Id firsttype, int16_t firstslot, InventoryType::Id secondtype, int16_t secondslot);
         // Remove an item.
@@ -132,7 +132,7 @@ namespace jrc
         {
             int32_t unique_id;
             int32_t item_id;
-            int16_t count;
+            int32_t count;
             bool cash;
             int64_t cash_id = 0;
             int64_t expiration = 0;

@@ -45,7 +45,7 @@ namespace jrc
             void drop_on_items(InventoryType::Id, Equipslot::Id, int16_t, bool) const override {}
         };
 
-        Icon(std::unique_ptr<Type> type, Texture texture, int16_t count);
+        Icon(std::unique_ptr<Type> type, Texture texture, int32_t count);
         Icon();
 
         void draw(Point<int16_t> position) const;
@@ -56,14 +56,14 @@ namespace jrc
         void drop_on_bindings(Point<int16_t> cursorpos, bool remove) const;
         void start_drag(Point<int16_t> offset);
         void reset();
-        void set_count(int16_t count);
-        int16_t get_count() const;
+        void set_count(int32_t count);
+        int32_t get_count() const;
 
     private:
         std::unique_ptr<Type> type;
         Texture texture;
         bool showcount;
-        int16_t count;
+        int32_t count;
 
         bool dragged;
         Point<int16_t> cursoroffset;

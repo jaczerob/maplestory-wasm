@@ -107,27 +107,8 @@ namespace jrc
 
     AttackResult MapMobs::send_attack(const Attack& attack)
     {
-        Point<int16_t> origin    = attack.origin;
-        Rectangle<int16_t> range = attack.range;
-        int16_t hrange = static_cast<int16_t>(range.l() * attack.hrange);
-        if (attack.toleft)
-        {
-            range = {
-                origin.x() + hrange,
-                origin.x() + range.r(),
-                origin.y() + range.t(),
-                origin.y() + range.b()
-            };
-        }
-        else
-        {
-            range = {
-                origin.x() - range.r(),
-                origin.x() - hrange,
-                origin.y() + range.t(),
-                origin.y() + range.b()
-            };
-        }
+        Point<int16_t> origin = attack.origin;
+        Rectangle<int16_t> range = attack.get_range();
 
         uint8_t mobcount = attack.mobcount;
         AttackResult result = attack;

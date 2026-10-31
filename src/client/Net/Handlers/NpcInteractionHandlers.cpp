@@ -100,7 +100,7 @@ namespace jrc
             }
             else
             {
-                entry.count = recv.read_short();
+                entry.count = parsed_type == InventoryType::ETC ? recv.read_int() : recv.read_short();
                 recv.read_string(); // owner
                 recv.skip(2); // flags
 

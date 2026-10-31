@@ -150,7 +150,7 @@ namespace jrc
     {
         if (int32_t item_id = inventory.get_item_id(tab, slot))
         {
-            int16_t count;
+            int32_t count;
             if (tab == InventoryType::EQUIP)
             {
                 count = -1;

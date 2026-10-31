@@ -74,12 +74,15 @@ namespace jrc
     {
     public:
         // Requests that an item should be bought from or sold to a npc shop.
-        NpcShopActionPacket(int16_t slot, int32_t itemid, int16_t qty, bool buy)
+        NpcShopActionPacket(int16_t slot, int32_t itemid, int32_t qty, bool buy)
             : NpcShopActionPacket(buy ? BUY : SELL) {
 
             write_short(slot);
             write_int(itemid);
-            write_short(qty);
+            if (!buy && itemid / 1'000'000 == 4)
+                write_int(qty);
+            else
+                write_short(static_cast<int16_t>(qty));
         }
 
         // Requests that an item should be recharged at a npc shop.
@@ -119,12 +122,15 @@ namespace jrc
         }
 
         // Requests storing an inventory item in storage.
-        StorageActionPacket(int16_t slot, int32_t itemid, int16_t qty)
+        StorageActionPacket(int16_t slot, int32_t itemid, int32_t qty)
             : StorageActionPacket(STORE)
         {
             write_short(slot);
             write_int(itemid);
-            write_short(qty);
+            if (itemid / 1'000'000 == 4)
+                write_int(qty);
+            else
+                write_short(static_cast<int16_t>(qty));
         }
 
         // Requests moving mesos between inventory and storage.

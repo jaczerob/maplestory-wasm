@@ -28,7 +28,7 @@ namespace jrc
             bool cash = recv.read_bool();
             int64_t cash_id = cash ? recv.read_long() : 0;
             int64_t expire = recv.read_long();
-            int16_t count = recv.read_short();
+            int32_t count = invtype == InventoryType::ETC ? recv.read_int() : recv.read_short();
             std::string owner = recv.read_string();
             int16_t flag = recv.read_short();
 

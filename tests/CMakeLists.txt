@@ -87,6 +87,7 @@ function(client_test name suite)
 endfunction()
 
 client_test(packet_test unit)
+client_test(reactor_test unit)
 client_test(cash_shop_test unit)
 client_test(ui_window_test unit)
 client_test(job_requirements_test unit)
@@ -100,7 +101,7 @@ target_link_libraries(test_nx PUBLIC test_options)
 client_test(nx_split_test unit test_nx)
 
 if(TEST_ASSETS)
-    foreach(asset Character Etc Item Mob Npc Quest String UI UI_83)
+    foreach(asset Character Etc Item Mob Npc Quest Reactor String UI UI_83)
         if(NOT EXISTS "${TEST_ASSET_DIR}/shared/${asset}.meta")
             message(FATAL_ERROR "Asset tests require ${TEST_ASSET_DIR}/shared/${asset}.meta. Set TEST_ASSET_DIR to an asset root, or configure with TEST_ASSETS=OFF.")
         endif()
@@ -132,6 +133,8 @@ if(TEST_ASSETS)
         "${CLIENT}/Character/Look/BodyDrawInfo.cpp" "${CLIENT}/Character/Look/Stance.cpp"
         "${CLIENT}/Gameplay/QuestConversation.cpp" "${CLIENT}/Gameplay/MapleMap/Npc.cpp"
         "${CLIENT}/Gameplay/MapleMap/MapObject.cpp"
+        "${CLIENT}/Gameplay/MapleMap/Reactor.cpp"
+        "${CLIENT}/Gameplay/Physics/Foothold.cpp"
         "${CLIENT}/IO/Components/EquipInventoryLayout.cpp" "${CLIENT}/IO/Components/Icon.cpp"
         "${CLIENT}/IO/Components/Charset.cpp" "${CLIENT}/IO/Components/Button.cpp"
         "${CLIENT}/IO/Components/MapleButton.cpp" "${CLIENT}/IO/Components/TwoSpriteButton.cpp"
@@ -159,5 +162,6 @@ if(TEST_ASSETS)
     foreach(name equip_inventory face_accessory)
         client_test(${name}_test assets test_texture_capture test_asset_client test_asset_support)
     endforeach()
+    client_test(reactor_assets_test assets test_texture_capture test_asset_client test_asset_support)
     client_test(mob_animation_assets_test assets test_texture_capture test_asset_client test_asset_support)
 endif()

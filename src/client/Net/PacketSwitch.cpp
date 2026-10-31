@@ -149,6 +149,7 @@ namespace jrc
         REMOVE_LOOT       = 269,
         SPAWN_REACTOR     = 279,
         REMOVE_REACTOR    = 280,
+        TRIGGER_REACTOR   = 0x115,
 
         // NPC Interaction
         NPC_DIALOGUE  = 304,
@@ -200,6 +201,7 @@ namespace jrc
         emplace<REMOVE_LOOT, RemoveLootHandler>();
         emplace<SPAWN_REACTOR, SpawnReactorHandler>();
         emplace<REMOVE_REACTOR, RemoveReactorHandler>();
+        emplace<TRIGGER_REACTOR, TriggerReactorHandler>();
 
         // Attack handlers
         emplace<ATTACKED_CLOSE, CloseAttackHandler>();

@@ -5,6 +5,8 @@
 #include "client/Character/Inventory/EquipQuality.h"
 #include "client/Graphics/Texture.h"
 
+#include <limits>
+
 // Quality colors are unrelated to inventory identity and require rendering assets.
 namespace jrc { Texture::~Texture() {} }
 namespace jrc::EquipQuality
@@ -104,4 +106,38 @@ TEST_CASE("Pet and consumable records preserve cash IDs and quantities")
     REQUIRE((!consume_input.available()));
     REQUIRE((inventory.get_item_count(InventoryType::USE, 1) == 30));
     REQUIRE((inventory.get_cash_id(InventoryType::USE, 1) == 98765));
+}
+
+TEST_CASE("ETC inventory records and updates preserve quantities above signed-short range")
+{
+    using namespace jrc;
+    Inventory inventory;
+    Fixture shell(2, 4000019, 0);
+    shell.write_int(70000); shell.write_string("owner"); shell.write_short(8);
+    auto input = shell.input();
+    ItemParser::parse_item(input, InventoryType::ETC, 1, inventory);
+    CHECK_FALSE(input.available());
+    CHECK(inventory.get_item_count(InventoryType::ETC, 1) == 70000);
+    inventory.modify(InventoryType::ETC, 1, Inventory::CHANGECOUNT, 80000, Inventory::MOVE_NONE);
+    CHECK(inventory.get_item_count(InventoryType::ETC, 1) == 80000);
+
+    MoveItemPacket drop(InventoryType::ETC, 1, 0, 70000);
+    InPacket request(drop.data().data() + 11, drop.data().size() - 11);
+    CHECK(request.read_int() == 70000);
+    CHECK_FALSE(request.available());
+
+    inventory.modify(InventoryType::ETC, 1, Inventory::CHANGECOUNT, 1500000000, Inventory::MOVE_NONE);
+    inventory.add_item(InventoryType::ETC, 2, 4000019, false, -1, 1500000000, "", 0);
+    CHECK(inventory.count_items(4000019) == std::numeric_limits<int32_t>::max());
+}
+
+TEST_CASE("Truncated ETC quantities cannot add an inventory item")
+{
+    using namespace jrc;
+    Inventory inventory;
+    Fixture shell(2, 4000019, 0);
+    shell.write_short(1);
+    auto input = shell.input();
+    CHECK_THROWS_AS(ItemParser::parse_item(input, InventoryType::ETC, 1, inventory), PacketError);
+    CHECK(inventory.get_item_count(InventoryType::ETC, 1) == 0);
 }

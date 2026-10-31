@@ -519,4 +519,16 @@ namespace jrc
         Stage::get().get_reactors()
             .remove(oid, state, point);
     }
+
+
+    void TriggerReactorHandler::handle(InPacket& recv) const
+    {
+        int32_t oid = recv.read_int();
+        int8_t state = recv.read_byte();
+        Point<int16_t> point = recv.read_point();
+        recv.read_byte(); // stance
+        recv.skip(3);
+
+        Stage::get().get_reactors().hit(oid, state, point);
+    }
 }

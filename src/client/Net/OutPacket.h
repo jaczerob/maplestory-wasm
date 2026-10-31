@@ -89,6 +89,7 @@ namespace jrc
         CLOSE_ATTACK  = 44,
         RANGED_ATTACK = 45,
         MAGIC_ATTACK  = 46,
+        DAMAGE_REACTOR = 0xCD,
         TAKE_DAMAGE   = 48,
 
         // Messaging
